@@ -16,13 +16,13 @@ required_environment_variables:
     required_for: Running relay audits without pasting secrets into chat
 ---
 
-# API Relay Audit for Hermes Agent
+# API Relay Audit
 
 ## Overview
 
 This skill runs `api-relay-audit`, a zero-dependency security audit for third-party AI API relays and proxy services. It checks whether the relay tampers with prompts, truncates context, rewrites package-install instructions, leaks upstream credentials or internal headers, corrupts Anthropic SSE streams, changes the upstream channel, or injects unsafe Web3 wallet behavior.
 
-Use the standalone `audit.py` path by default. It only needs Python 3 and `curl`, which makes it suitable for local Hermes terminal sessions and sandboxed execution.
+Use the standalone `audit.py` path by default. It only needs Python 3 and `curl`, making it suitable for any agent or terminal session with shell access.
 
 ## When to Use
 
@@ -35,24 +35,33 @@ Do not use this skill for general model benchmarking, provider price comparison,
 
 ## Install or Share
 
-After this file is merged to the public repository, Hermes users can install it as a tap skill:
+Repository: **https://github.com/yujipeng/sklls** — original skill source: https://github.com/toby-bridges/api-relay-audit
+
+### Claude Code / OpenClaw
+
+The SKILL.md format is natively compatible. Place the `api-relay-audit/` directory under your agent's skills folder, or reference it from your `CLAUDE.md` / agent config.
+
+### Hermes
 
 ```bash
-hermes skills tap add toby-bridges/api-relay-audit
-hermes skills install toby-bridges/api-relay-audit/api-relay-audit
+hermes skills tap add yujipeng/sklls
+hermes skills install yujipeng/sklls/api-relay-audit
 ```
 
-For direct testing without adding the whole tap:
+### Codex / General (any agent with shell access)
+
+Clone and run directly — no agent integration needed:
 
 ```bash
-hermes skills install toby-bridges/api-relay-audit/skills/api-relay-audit
+git clone https://github.com/yujipeng/sklls
+python3 sklls/api-relay-audit/audit.py --key "$API_RELAY_AUDIT_KEY" --url "$API_RELAY_AUDIT_URL"
 ```
 
 ## Required Inputs
 
 | Input | How to provide it | Notes |
 |---|---|---|
-| Relay API key | Prefer `$API_RELAY_AUDIT_KEY` via Hermes secure env setup | Use a temporary or low-scope key when possible. |
+| Relay API key | Prefer `$API_RELAY_AUDIT_KEY` via `.env` or agent secure env | Use a temporary or low-scope key when possible. |
 | Base URL | Ask the user or use `$API_RELAY_AUDIT_URL` if already set | Example: `https://relay.example.com/v1`. |
 | Model | Optional; default is `claude-opus-4-6` | Use the model the user plans to rely on. |
 | Profile | Optional; default is `general` | Use `web3` for wallet users, `full` for complete coverage. |
@@ -62,7 +71,7 @@ Never print the raw API key in summaries, filenames, reports, shell traces, or G
 ## Standard Workflow
 
 1. Confirm the target base URL, model, and profile.
-2. Ensure the key is available as `$API_RELAY_AUDIT_KEY`. If it is missing, ask the user to configure it through Hermes secure setup or local `.env`, not by committing it.
+2. Ensure the key is available as `$API_RELAY_AUDIT_KEY`. If it is missing, ask the user to set it via `.env` or agent env setup — not by committing it.
 3. Download the standalone script into a temporary directory unless the current repo already contains `audit.py`.
 4. Run the audit and write a Markdown report.
 5. Summarize only evidence from the generated report. Do not overstate safety or make policy promises.
@@ -74,7 +83,7 @@ Use this when the user provides a base URL and wants a normal audit:
 ```bash
 set -euo pipefail
 
-: "${API_RELAY_AUDIT_KEY:?Set API_RELAY_AUDIT_KEY through Hermes secure env setup first}"
+: "${API_RELAY_AUDIT_KEY:?Set API_RELAY_AUDIT_KEY via .env or agent secure env first}"
 : "${API_RELAY_AUDIT_URL:?Set API_RELAY_AUDIT_URL to the relay base URL}"
 
 MODEL="${API_RELAY_AUDIT_MODEL:-claude-opus-4-6}"
@@ -175,7 +184,7 @@ Recommendation: <use / use with caution / do not use>, based only on the report 
 
 ## Verification Checklist
 
-- [ ] `skills/api-relay-audit/SKILL.md` frontmatter has `name`, `description`, `version`, `author`, `license`, and `metadata.hermes.tags`.
+- [ ] `api-relay-audit/SKILL.md` frontmatter has `name`, `description`, `version`, `author`, `license`, and `metadata.tags`.
 - [ ] Description is under 1024 characters and starts with "Use when".
 - [ ] The audit command uses `$API_RELAY_AUDIT_KEY`, not a literal key.
 - [ ] The report was generated as Markdown and the key was not echoed.
