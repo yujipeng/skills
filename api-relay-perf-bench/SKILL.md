@@ -61,7 +61,7 @@ Clone and run directly — no agent integration needed:
 
 ```bash
 git clone https://github.com/yujipeng/skills
-python3 sklls/api-relay-perf-bench/perf-bench.py --url "$PERF_BENCH_URL" --key "$PERF_BENCH_KEY" --vendor gpt
+python3 skills/api-relay-perf-bench/perf-bench.py --url "$PERF_BENCH_URL" --key "$PERF_BENCH_KEY" --vendor gpt
 ```
 
 ## Required Inputs
@@ -112,7 +112,7 @@ python3 "$WORKDIR/perf-bench.py" \
 printf 'Reports written to %s/perf-report.{html,json}\n' "$OUTDIR"
 ```
 
-If the current working tree is the `sklls` repository and `perf-bench.py` exists, prefer the local file:
+If the current working tree is the `skills` repository and `perf-bench.py` exists, prefer the local file:
 
 ```bash
 python3 perf-bench.py \

@@ -54,7 +54,7 @@ Clone and run directly — no agent integration needed:
 
 ```bash
 git clone https://github.com/yujipeng/skills
-python3 sklls/api-relay-audit/audit.py --key "$API_RELAY_AUDIT_KEY" --url "$API_RELAY_AUDIT_URL"
+python3 skills/api-relay-audit/audit.py --key "$API_RELAY_AUDIT_KEY" --url "$API_RELAY_AUDIT_URL"
 ```
 
 ## Required Inputs
