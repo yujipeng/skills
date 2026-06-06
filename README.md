@@ -2,6 +2,8 @@
 
 个人 Agent Skills 收藏仓库。每个子目录是一个独立的 skill，包含 `SKILL.md` 及其依赖文件。
 
+兼容：**Claude Code / OpenClaw**（SKILL.md 原生）、**Hermes**（tap install）、**Codex / 通用**（clone 后直接运行）。
+
 ## 已收录
 
 ### `api-relay-audit/`
@@ -29,3 +31,35 @@ python3 api-relay-audit/audit.py \
 `--profile` 支持 `general` / `web3` / `full`。`audit.py` 已随仓库本地化，运行时无需再联网拉取脚本。
 
 > 切勿在报告、文件名、shell 记录或提交中泄露原始 API key；建议使用临时 / 低权限 key，审计后视情况轮换。
+
+---
+
+### `api-relay-perf-bench/`
+
+第三方 AI API 中转服务的性能基准 + 响应纯净度检测工具。
+
+- **创意来源**：[gigi1121/audit_ai_api](https://github.com/gigi1121/audit_ai_api)
+- **版本**：v1.0.0
+- **License**：AGPL-3.0-only
+- **依赖**：Python 3 + `curl`，零第三方库
+
+测量项：流式 TTFT、p50/p90/p95/p99 延迟、身份泄漏、系统提示泄漏、中转内部 token、语言不匹配、拒绝响应、空响应。输出自包含 HTML + JSON 报告。
+
+**运行**：
+
+```bash
+# 单端点
+python3 api-relay-perf-bench/perf-bench.py \
+  --url "$PERF_BENCH_URL" \
+  --key "$PERF_BENCH_KEY" \
+  --vendor gpt \
+  --rounds 10 \
+  --output perf-report.html
+
+# 多端点对比（JSON 配置）
+python3 api-relay-perf-bench/perf-bench.py \
+  --config api-relay-perf-bench/perf-configs/taoken-vs-allall.json \
+  --output perf-report.html
+```
+
+> 与 `api-relay-audit` 互补：audit 做安全深查，perf-bench 做速度和纯净度快检。建议两者配合使用。
