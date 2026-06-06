@@ -42,7 +42,7 @@ Do not use this skill for full security auditing (use `api-relay-audit`), genera
 
 ## Install or Share
 
-Repository: **https://github.com/yujipeng/sklls** — adapted from the original work at https://github.com/gigi1121/audit_ai_api
+Repository: **https://github.com/yujipeng/skills** — adapted from the original work at https://github.com/gigi1121/audit_ai_api
 
 ### Claude Code / OpenClaw
 
@@ -51,8 +51,8 @@ The SKILL.md format is natively compatible. Place the `api-relay-perf-bench/` di
 ### Hermes
 
 ```bash
-hermes skills tap add yujipeng/sklls
-hermes skills install yujipeng/sklls/api-relay-perf-bench
+hermes skills tap add yujipeng/skills
+hermes skills install yujipeng/skills/api-relay-perf-bench
 ```
 
 ### Codex / General (any agent with shell access)
@@ -60,7 +60,7 @@ hermes skills install yujipeng/sklls/api-relay-perf-bench
 Clone and run directly — no agent integration needed:
 
 ```bash
-git clone https://github.com/yujipeng/sklls
+git clone https://github.com/yujipeng/skills
 python3 sklls/api-relay-perf-bench/perf-bench.py --url "$PERF_BENCH_URL" --key "$PERF_BENCH_KEY" --vendor gpt
 ```
 

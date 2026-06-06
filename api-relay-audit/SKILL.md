@@ -35,7 +35,7 @@ Do not use this skill for general model benchmarking, provider price comparison,
 
 ## Install or Share
 
-Repository: **https://github.com/yujipeng/sklls** — original skill source: https://github.com/toby-bridges/api-relay-audit
+Repository: **https://github.com/yujipeng/skills** — original skill source: https://github.com/toby-bridges/api-relay-audit
 
 ### Claude Code / OpenClaw
 
@@ -44,8 +44,8 @@ The SKILL.md format is natively compatible. Place the `api-relay-audit/` directo
 ### Hermes
 
 ```bash
-hermes skills tap add yujipeng/sklls
-hermes skills install yujipeng/sklls/api-relay-audit
+hermes skills tap add yujipeng/skills
+hermes skills install yujipeng/skills/api-relay-audit
 ```
 
 ### Codex / General (any agent with shell access)
@@ -53,7 +53,7 @@ hermes skills install yujipeng/sklls/api-relay-audit
 Clone and run directly — no agent integration needed:
 
 ```bash
-git clone https://github.com/yujipeng/sklls
+git clone https://github.com/yujipeng/skills
 python3 sklls/api-relay-audit/audit.py --key "$API_RELAY_AUDIT_KEY" --url "$API_RELAY_AUDIT_URL"
 ```
 
