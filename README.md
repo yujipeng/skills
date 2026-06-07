@@ -56,9 +56,9 @@ python3 api-relay-perf-bench/perf-bench.py \
   --rounds 10 \
   --output perf-report.html
 
-# 多端点对比（JSON 配置）
+# 多端点对比（JSON 配置，自备 config 文件）
 python3 api-relay-perf-bench/perf-bench.py \
-  --config api-relay-perf-bench/perf-configs/taoken-vs-allall.json \
+  --config your-endpoints.json \
   --output perf-report.html
 ```
 
