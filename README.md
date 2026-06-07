@@ -63,3 +63,31 @@ python3 api-relay-perf-bench/perf-bench.py \
 ```
 
 > 与 `api-relay-audit` 互补：audit 做安全深查，perf-bench 做速度和纯净度快检。建议两者配合使用。
+
+---
+
+### `browser-act/`
+
+Browser automation CLI for AI agents。提供 Stealth 反检测浏览器、Chrome 导入、无头浏览器自动化能力，支持数据提取、表单填写、截图、网络请求捕获、多浏览器并行、验证码自动处理等。
+
+- **来源**：[BrowserAct](https://www.browseract.com)
+- **安装**：`uv tool install browser-act-cli --python 3.12`
+- **版本**：v2.0.2
+- **License**：详见 SKILL.md
+- **依赖**：Python 3.12+、uv package manager
+
+核心功能：`stealth-extract`（反检测内容提取）、session 管理（多窗口隔离）、network request 捕获、solve-captcha。
+
+> 参考用法见本仓库 `browser-act/SKILL.md`。browser-act 的 Stealth 浏览器可绕过 X/Twitter、Reddit 等站点的反爬检测。
+
+---
+
+### `browser-act-skill-forge/`
+
+将任意网站的数据提取或操作需求转化为可复用的 Agent Skill 包（SKILL.md + Python 脚本）。先探索（API 优先，DOM 兜底），再生成已验证的 Skill 包，后续调用无需重复探索。
+
+- **来源**：[BrowserAct](https://www.browseract.com)
+- **版本**：v1.0.6
+- **License**：详见 SKILL.md
+
+典型场景：批量提取（数百/数千条记录）、网站内部 API 逆向、将现有爬虫/SaaS 工具复现为 Skill。

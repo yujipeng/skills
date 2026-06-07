@@ -9,7 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 子目录结构
 
 - `api-relay-audit/` — 安全审计 skill：`SKILL.md` + `audit.py`（零依赖，Python 3 + curl）
+<<<<<<< HEAD
 - `api-relay-perf-bench/` — 性能基准 skill：`SKILL.md` + `perf-bench.py`（多端点模式可自备 JSON 配置）
+- `browser-act/` — 浏览器自动化 CLI：`SKILL.md`（需 `uv tool install browser-act-cli --python 3.12` 安装运行时）
+- `browser-act-skill-forge/` — 网站数据提取 skill 生成器：`SKILL.md`
+>>>>>>> 5577a6a (添加 browser-act / browser-act-skill-forge skill 并更新文档)
 
 ## 运行脚本
 
@@ -53,9 +57,11 @@ python3 api-relay-perf-bench/perf-bench.py \
 
 ## 版本管理
 
-- 两个 skill 均为 AGPL-3.0-only，修改后再分发须保持相同许可证
+- 前两个 skill 均为 AGPL-3.0-only，修改后再分发须保持相同许可证
 - `api-relay-audit` 来源：`toby-bridges/api-relay-audit` v2.3.0
 - `api-relay-perf-bench` 作者：gigi1121，v1.0.0
+- `browser-act` 来源：[BrowserAct](https://www.browseract.com) v2.0.2（安装：`uv tool install browser-act-cli --python 3.12`）
+- `browser-act-skill-forge` 来源：[BrowserAct](https://www.browseract.com) v1.0.6
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
