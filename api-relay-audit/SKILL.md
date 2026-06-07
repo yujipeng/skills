@@ -8,12 +8,16 @@ platforms: [linux, macos]
 metadata:
   hermes:
     tags: [security, red-teaming, ai-safety, api-relay, web3]
-    related_skills: []
+    related_skills: [api-relay-perf-bench]
 required_environment_variables:
   - name: API_RELAY_AUDIT_KEY
     prompt: API relay key
     help: Use a temporary or low-scope key for the relay being tested.
     required_for: Running relay audits without pasting secrets into chat
+  - name: API_RELAY_AUDIT_URL
+    prompt: Relay base URL to audit
+    help: Example https://relay.example.com/v1
+    required_for: Running relay audits without pasting URLs into chat
 ---
 
 # API Relay Audit
@@ -72,7 +76,7 @@ Never print the raw API key in summaries, filenames, reports, shell traces, or G
 
 1. Confirm the target base URL, model, and profile.
 2. Ensure the key is available as `$API_RELAY_AUDIT_KEY`. If it is missing, ask the user to set it via `.env` or agent env setup — not by committing it.
-3. Download the standalone script into a temporary directory unless the current repo already contains `audit.py`.
+3. Use the local `audit.py` in this repo directly. Only download if it is not available (see fallback in One-Shot Recipe below).
 4. Run the audit and write a Markdown report.
 5. Summarize only evidence from the generated report. Do not overstate safety or make policy promises.
 
@@ -80,16 +84,31 @@ Never print the raw API key in summaries, filenames, reports, shell traces, or G
 
 Use this when the user provides a base URL and wants a normal audit:
 
+**Prefer the local script.** This repo already ships `audit.py`, so no download is needed. Run it directly — use `api-relay-audit/audit.py` from the `skills` repo root, or `audit.py` from inside the `api-relay-audit/` directory:
+
 ```bash
 set -euo pipefail
 
 : "${API_RELAY_AUDIT_KEY:?Set API_RELAY_AUDIT_KEY via .env or agent secure env first}"
 : "${API_RELAY_AUDIT_URL:?Set API_RELAY_AUDIT_URL to the relay base URL}"
 
-MODEL="${API_RELAY_AUDIT_MODEL:-claude-opus-4-6}"
-PROFILE="${API_RELAY_AUDIT_PROFILE:-general}"
+python3 api-relay-audit/audit.py \
+  --key "$API_RELAY_AUDIT_KEY" \
+  --url "$API_RELAY_AUDIT_URL" \
+  --model "${API_RELAY_AUDIT_MODEL:-claude-opus-4-6}" \
+  --profile "${API_RELAY_AUDIT_PROFILE:-general}" \
+  --output api-relay-audit-report.md
+```
+
+**Fallback: download the standalone script** only when `audit.py` is not available locally:
+
+```bash
+set -euo pipefail
+
+: "${API_RELAY_AUDIT_KEY:?Set API_RELAY_AUDIT_KEY via .env or agent secure env first}"
+: "${API_RELAY_AUDIT_URL:?Set API_RELAY_AUDIT_URL to the relay base URL}"
+
 WORKDIR="$(mktemp -d)"
-REPORT="$PWD/api-relay-audit-report.md"
 AUDIT_SCRIPT_REF=fa12ae8513ef77c13c4cd8227a47e9121a257504
 
 curl -fsSL \
@@ -97,19 +116,6 @@ curl -fsSL \
   -o "$WORKDIR/audit.py"
 
 python3 "$WORKDIR/audit.py" \
-  --key "$API_RELAY_AUDIT_KEY" \
-  --url "$API_RELAY_AUDIT_URL" \
-  --model "$MODEL" \
-  --profile "$PROFILE" \
-  --output "$REPORT"
-
-printf 'Report written to %s\n' "$REPORT"
-```
-
-If the current working tree is the `api-relay-audit` repository and `audit.py` exists, prefer the local file:
-
-```bash
-python3 audit.py \
   --key "$API_RELAY_AUDIT_KEY" \
   --url "$API_RELAY_AUDIT_URL" \
   --model "${API_RELAY_AUDIT_MODEL:-claude-opus-4-6}" \

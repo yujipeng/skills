@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 子目录结构
 
 - `api-relay-audit/` — 安全审计 skill：`SKILL.md` + `audit.py`（零依赖，Python 3 + curl）
-- `api-relay-perf-bench/` — 性能基准 skill：`SKILL.md` + `perf-bench.py` + `perf-configs/`（JSON 示例配置）
+- `api-relay-perf-bench/` — 性能基准 skill：`SKILL.md` + `perf-bench.py`（多端点模式可自备 JSON 配置）
 
 ## 运行脚本
 
@@ -30,9 +30,9 @@ python3 api-relay-perf-bench/perf-bench.py \
   --rounds 10 \
   --output perf-report.html
 
-# 性能基准（多端点 JSON 配置）
+# 性能基准（多端点 JSON 配置，自备 config 文件）
 python3 api-relay-perf-bench/perf-bench.py \
-  --config api-relay-perf-bench/perf-configs/example.json \
+  --config your-endpoints.json \
   --output perf-report.html
 ```
 
@@ -49,7 +49,7 @@ python3 api-relay-perf-bench/perf-bench.py \
 - API key 始终通过环境变量传入（`$API_RELAY_AUDIT_KEY`、`$PERF_BENCH_KEY`）
 - 禁止在报告文件名、shell 日志、提交信息、GitHub 评论中出现原始 key
 - 建议使用临时或低权限 key，审计后按需轮换
-- JSON 配置示例文件中 key 使用占位符 `sk-REPLACE_ME_*`
+- 自备 JSON 配置文件时，key 用占位符或环境变量引用，禁止提交真实 key
 
 ## 版本管理
 

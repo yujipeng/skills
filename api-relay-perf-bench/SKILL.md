@@ -80,7 +80,7 @@ Never print the raw API key in summaries, filenames, reports, shell traces, or G
 
 1. Confirm the target base URL, vendor (or explicit model list), and report output path.
 2. Ensure the key is available as `$PERF_BENCH_KEY`. If it is missing, ask the user to set it via `.env` or agent env setup — not by committing it.
-3. Download the standalone script into a temporary directory unless the current repo already contains `perf-bench.py`.
+3. Use the local `perf-bench.py` in this repo directly. Only download if it is not available (see fallback in One-Shot Benchmark Recipe below).
 4. Run the benchmark and write HTML + JSON reports.
 5. Summarize only evidence from the generated report. Do not overstate reliability or make policy promises.
 
@@ -88,34 +88,37 @@ Never print the raw API key in summaries, filenames, reports, shell traces, or G
 
 Use this when the user provides a base URL and vendor:
 
+**Prefer the local script.** This repo already ships `perf-bench.py`, so no download is needed. Run it directly — use `api-relay-perf-bench/perf-bench.py` from the `skills` repo root, or `perf-bench.py` from inside the `api-relay-perf-bench/` directory:
+
 ```bash
 set -euo pipefail
 
 : "${PERF_BENCH_KEY:?Set PERF_BENCH_KEY via .env or agent secure env first}"
 : "${PERF_BENCH_URL:?Set PERF_BENCH_URL to the relay base URL}"
 
-VENDOR="${PERF_BENCH_VENDOR:-gpt}"
+python3 api-relay-perf-bench/perf-bench.py \
+  --url "$PERF_BENCH_URL" \
+  --key "$PERF_BENCH_KEY" \
+  --vendor "${PERF_BENCH_VENDOR:-gpt}" \
+  --rounds 10 \
+  --output perf-report.html
+```
+
+**Fallback: download the standalone script** only when `perf-bench.py` is not available locally:
+
+```bash
+set -euo pipefail
+
+: "${PERF_BENCH_KEY:?Set PERF_BENCH_KEY via .env or agent secure env first}"
+: "${PERF_BENCH_URL:?Set PERF_BENCH_URL to the relay base URL}"
+
 WORKDIR="$(mktemp -d)"
-OUTDIR="${PWD}"
 
 curl -fsSL \
   "https://raw.githubusercontent.com/gigi1121/audit_ai_api/main/perf-bench.py" \
   -o "$WORKDIR/perf-bench.py"
 
 python3 "$WORKDIR/perf-bench.py" \
-  --url "$PERF_BENCH_URL" \
-  --key "$PERF_BENCH_KEY" \
-  --vendor "$VENDOR" \
-  --rounds 10 \
-  --output "$OUTDIR/perf-report.html"
-
-printf 'Reports written to %s/perf-report.{html,json}\n' "$OUTDIR"
-```
-
-If the current working tree is the `skills` repository and `perf-bench.py` exists, prefer the local file:
-
-```bash
-python3 perf-bench.py \
   --url "$PERF_BENCH_URL" \
   --key "$PERF_BENCH_KEY" \
   --vendor "${PERF_BENCH_VENDOR:-gpt}" \
@@ -154,7 +157,7 @@ For side-by-side relay comparison, use a JSON config file:
 ```
 
 ```bash
-python3 perf-bench.py --config comparison.json --output reports/comparison.html
+python3 api-relay-perf-bench/perf-bench.py --config comparison.json --output reports/comparison.html
 ```
 
 ## CLI Flags Reference
@@ -183,15 +186,15 @@ python3 perf-bench.py --config comparison.json --output reports/comparison.html
 ### Quick Reference: Invocation Styles
 
 ```bash
-# 1. Shortest — positional
-python3 perf-bench.py https://relay.example.com sk-... gpt
+# 1. Shortest — positional (from repo root)
+python3 api-relay-perf-bench/perf-bench.py https://relay.example.com sk-... gpt
 
-# 2. Flag form
-python3 perf-bench.py --url https://relay.example.com --key sk-... \
+# 2. Flag form (from repo root)
+python3 api-relay-perf-bench/perf-bench.py --url https://relay.example.com --key sk-... \
     --vendor claude --rounds 5
 
-# 3. JSON config (multi-endpoint)
-python3 perf-bench.py --config comparison.json --output report.html
+# 3. JSON config — multi-endpoint (from repo root)
+python3 api-relay-perf-bench/perf-bench.py --config comparison.json --output report.html
 ```
 
 ## Cost Controls
