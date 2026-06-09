@@ -9,11 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 子目录结构
 
 - `api-relay-audit/` — 安全审计 skill：`SKILL.md` + `audit.py`（零依赖，Python 3 + curl）
-<<<<<<< HEAD
 - `api-relay-perf-bench/` — 性能基准 skill：`SKILL.md` + `perf-bench.py`（多端点模式可自备 JSON 配置）
 - `browser-act/` — 浏览器自动化 CLI：`SKILL.md`（需 `uv tool install browser-act-cli --python 3.12` 安装运行时）
 - `browser-act-skill-forge/` — 网站数据提取 skill 生成器：`SKILL.md`
->>>>>>> 5577a6a (添加 browser-act / browser-act-skill-forge skill 并更新文档)
+- `web-access/` — AI Agent 联网能力 skill：`SKILL.md` + 5 个 Node.js 脚本（依赖 Node.js 22+，需 Chrome/Edge 开启远程调试）
 
 ## 运行脚本
 
@@ -38,6 +37,10 @@ python3 api-relay-perf-bench/perf-bench.py \
 python3 api-relay-perf-bench/perf-bench.py \
   --config your-endpoints.json \
   --output perf-report.html
+
+# web-access 环境检查与 CDP Proxy 启动（通常由 Agent 自动执行）
+node web-access/scripts/check-deps.mjs
+# 临时指定浏览器：node web-access/scripts/check-deps.mjs --browser edge
 ```
 
 ## SKILL.md 规范
@@ -47,6 +50,7 @@ python3 api-relay-perf-bench/perf-bench.py \
 - frontmatter 包含：`name`、`description`（<1024 字符，以 "Use when" 开头）、`version`、`author`、`license`、`metadata.hermes.tags`
 - 必须声明 `required_environment_variables`，禁止把 key 硬编码或出现在报告/日志中
 - 相关 skill 通过 `metadata.hermes.related_skills` 关联
+- 不使用环境变量配置的 skill（如 web-access，使用 config.env 文件）声明 `required_environment_variables: []`
 
 ## 安全要求
 
@@ -62,6 +66,7 @@ python3 api-relay-perf-bench/perf-bench.py \
 - `api-relay-perf-bench` 作者：gigi1121，v1.0.0
 - `browser-act` 来源：[BrowserAct](https://www.browseract.com) v2.0.2（安装：`uv tool install browser-act-cli --python 3.12`）
 - `browser-act-skill-forge` 来源：[BrowserAct](https://www.browseract.com) v1.0.6
+- `web-access` 来源：[eze-is/web-access](https://github.com/eze-is/web-access) v2.5.3（MIT 许可证）
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 

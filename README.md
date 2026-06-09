@@ -91,3 +91,18 @@ Browser automation CLI for AI agents。提供 Stealth 反检测浏览器、Chrom
 - **License**：详见 SKILL.md
 
 典型场景：批量提取（数百/数千条记录）、网站内部 API 逆向、将现有爬虫/SaaS 工具复现为 Skill。
+
+---
+
+### `web-access/`
+
+给 AI Agent 装上完整联网能力的 Skill — 联网策略 + CDP 浏览器操作 + 站点经验积累，兼容所有支持 SKILL.md 的 Agent（Claude Code、Cursor、Gemini CLI、Codex CLI 等）。
+
+- **来源**：[eze-is/web-access](https://github.com/eze-is/web-access)
+- **版本**：v2.5.3
+- **License**：MIT
+- **依赖**：Node.js 22+（原生 WebSocket）、Chrome / Edge / Chromium 系浏览器
+
+核心能力：联网工具自动选择（WebSearch / WebFetch / curl / Jina / CDP）、CDP Proxy 直连用户日常浏览器（天然登录态）、三种点击方式（JS click / 真实鼠标事件 / 文件上传）、本地书签/历史检索、多目标并行子 Agent 分治、站点经验跨 session 积累。
+
+> 与 `browser-act` 互补：`browser-act` 提供独立的 Stealth 反检测浏览器环境，`web-access` 直连用户日常浏览器并侧重联网策略调度。
