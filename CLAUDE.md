@@ -12,6 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `api-relay-perf-bench/` — 性能基准 skill：`SKILL.md` + `perf-bench.py`（多端点模式可自备 JSON 配置）
 - `browser-act/` — 浏览器自动化 CLI：`SKILL.md`（需 `uv tool install browser-act-cli --python 3.12` 安装运行时）
 - `browser-act-skill-forge/` — 网站数据提取 skill 生成器：`SKILL.md`
+- `humanizer/` — 去除 AI 写作痕迹 skill：`SKILL.md` + `README.md`（纯提示工程，无依赖）
+- `prototype-html/` — 交互式 HTML 产品原型生成 skill：`SKILL.md` + `assets/example.html`
+- `self-improving/` — Agent 自我反思与持久学习 skill：`SKILL.md` + 多个规则/状态文件（运行时状态文件通过 `.gitignore` 屏蔽）
+- `tc-exam-solver/` — 自动完成 tcredit 考试 skill：`SKILL.md` + 6 个 Python 脚本（通过 CDP 直连 Chrome）
+- `tc-protohub/` — ProtoHub 原型管理 skill：`SKILL.md` + `scripts/publish.py` + `evals/evals.json`
 - `web-access/` — AI Agent 联网能力 skill：`SKILL.md` + 5 个 Node.js 脚本（依赖 Node.js 22+，需 Chrome/Edge 开启远程调试）
 
 ## 运行脚本
@@ -61,11 +66,15 @@ node web-access/scripts/check-deps.mjs
 
 ## 版本管理
 
-- 前两个 skill 均为 AGPL-3.0-only，修改后再分发须保持相同许可证
-- `api-relay-audit` 来源：`toby-bridges/api-relay-audit` v2.3.0
-- `api-relay-perf-bench` 作者：gigi1121，v1.0.0
+- `api-relay-audit` 来源：`toby-bridges/api-relay-audit` v2.3.0（AGPL-3.0-only）
+- `api-relay-perf-bench` 作者：gigi1121，v1.0.0（AGPL-3.0-only）
 - `browser-act` 来源：[BrowserAct](https://www.browseract.com) v2.0.2（安装：`uv tool install browser-act-cli --python 3.12`）
 - `browser-act-skill-forge` 来源：[BrowserAct](https://www.browseract.com) v1.0.6
+- `humanizer` 来源：clawic.com skill 市场，v2.1.1
+- `prototype-html` 内部 skill，v1.0.0
+- `self-improving` 来源：[clawic.com/skills/self-improving](https://clawic.com/skills/self-improving) v1.2.16
+- `tc-exam-solver` 内部 skill，v1.0.0（针对 ai-exam.tcredit.com）
+- `tc-protohub` 内部 skill，v1.0.0（针对 tcredit ProtoHub）
 - `web-access` 来源：[eze-is/web-access](https://github.com/eze-is/web-access) v2.5.3（MIT 许可证）
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
