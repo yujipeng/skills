@@ -1,0 +1,6 @@
+# 运行时状态文件，由 agent 写入，不入库
+corrections.md
+heartbeat-state.md
+learning.md
+memory.md
+reflections.md
