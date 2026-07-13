@@ -16,7 +16,7 @@
 | [`prototype-html`](prototype-html/) | 生成带交互和说明的单文件 HTML 产品原型 | `vagerent/prototype-html` v1.0.0 |
 | [`self-improving`](self-improving/) | 通过反思、纠错和持久化记忆改进 Agent 行为 | Clawic v1.2.16 |
 | [`tc-exam-solver`](tc-exam-solver/) | 通过 Chrome 会话完成 tcredit AI 知识考试 | 内部 v1.0.0 |
-| [`tc-protohub`](tc-protohub/) | 打包、发布、更新和查询 ProtoHub 原型 | 内部 v1.0.0 |
+| [`tc-protohub`](tc-protohub/) | 打包、发布、更新和查询 ProtoHub 原型 | `airclear/skills` main，本地 URL 适配 |
 | [`web-access`](web-access/) | 提供搜索、网页提取和基于 CDP 的浏览器联网能力 | `eze-is/web-access` v2.5.3 |
 
 ## 运行时提示
