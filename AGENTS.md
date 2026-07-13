@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## 仓库用途
 
@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python3 api-relay-audit/audit.py \
   --key "$API_RELAY_AUDIT_KEY" \
   --url "$API_RELAY_AUDIT_URL" \
-  --model claude-opus-4-6 \
+  --model Codex-opus-4-6 \
   --profile general \
   --output api-relay-audit-report.md
 

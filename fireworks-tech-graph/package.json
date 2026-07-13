@@ -1,0 +1,48 @@
+{
+  "name": "@yizhiyanhua-ai/fireworks-tech-graph",
+  "version": "1.0.5",
+  "description": "Agent Skill for Codex and Claude Code that generates production-quality SVG technical diagrams with 8 built-in styles and exports SVG+PNG.",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "openai-codex",
+    "agent-skills",
+    "skill",
+    "diagram",
+    "svg",
+    "architecture",
+    "flowchart",
+    "uml",
+    "sequence-diagram",
+    "er-diagram",
+    "visualization"
+  ],
+  "author": "yizhiyanhua-ai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yizhiyanhua-ai/fireworks-tech-graph.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yizhiyanhua-ai/fireworks-tech-graph/issues"
+  },
+  "homepage": "https://github.com/yizhiyanhua-ai/fireworks-tech-graph#readme",
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "agents/",
+    "references/",
+    "scripts/",
+    "tests/",
+    "fixtures/",
+    "templates/",
+    "assets/",
+    "!**/__pycache__/**",
+    "!**/*.pyc"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
