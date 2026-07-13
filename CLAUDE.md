@@ -15,7 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `fireworks-tech-graph/` — 技术图生成 skill：自然语言生成 SVG + PNG，支持架构图、流程图、UML、ER 图和多种视觉风格
 - `frontend-design/` — Anthropic 前端设计 skill：指导构建有明确视觉方向、避免模板感的生产级界面
 - `guizang-ppt-skill/` — 归藏 PPT skill：生成电子杂志或瑞士风单文件 HTML 演示、配图和多平台封面
-- `humanizer/` — 去除 AI 写作痕迹 skill：`SKILL.md` + `README.md`（纯提示工程，无依赖）
+- `humanizer/` — 去除 AI 写作痕迹 skill：`SKILL.md` + `README.md` + Claude 插件元数据（纯提示工程，无运行时依赖）
+- `humanizer-zh/` — 中文去 AI 写作痕迹 skill：针对中文表达检测并重写模板化、宣传化和机械排比等模式
 - `prototype-html/` — 交互式 HTML 产品原型生成 skill：`SKILL.md` + `assets/example.html`
 - `self-improving/` — Agent 自我反思与持久学习 skill：`SKILL.md` + 多个规则/状态文件（运行时状态文件通过 `.gitignore` 屏蔽）
 - `tc-exam-solver/` — 自动完成 tcredit 考试 skill：`SKILL.md` + 6 个 Python 脚本（通过 CDP 直连 Chrome）
@@ -76,8 +77,9 @@ node web-access/scripts/check-deps.mjs
 - `fireworks-tech-graph` 来源：[yizhiyanhua-ai/fireworks-tech-graph](https://github.com/yizhiyanhua-ai/fireworks-tech-graph) v1.0.5（MIT）
 - `frontend-design` 来源：[anthropics/skills](https://github.com/anthropics/skills/tree/main/skills/frontend-design) `main`（许可证见 `frontend-design/LICENSE.txt`）
 - `guizang-ppt-skill` 来源：[op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) `main`（AGPL-3.0）
-- `humanizer` 来源：clawic.com skill 市场，v2.1.1
-- `prototype-html` 内部 skill，v1.0.0
+- `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.8.2（MIT）
+- `humanizer-zh` 来源：[op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) `main`（MIT）
+- `prototype-html` 来源：[vagerent/prototype-html](https://github.com/vagerent/prototype-html) v1.0.0（Apache-2.0）
 - `self-improving` 来源：[clawic.com/skills/self-improving](https://clawic.com/skills/self-improving) v1.2.16
 - `tc-exam-solver` 内部 skill，v1.0.0（针对 ai-exam.tcredit.com）
 - `tc-protohub` 内部 skill，v1.0.0（针对 tcredit ProtoHub）
