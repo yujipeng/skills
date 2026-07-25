@@ -63,7 +63,27 @@ else
     FAILURES=$((FAILURES + 1))
 fi
 
-# Check 3: render validation (cairosvg preferred, rsvg-convert fallback)
+# Check 3: semantic geometry contract for generated artifacts
+echo -n "Checking semantic geometry... "
+if GEOMETRY_ERR=$(python3 "${SCRIPT_DIR}/validate_svg.py" "$SVG_FILE" --check geometry 2>&1); then
+    echo -e "${GREEN}✓ Pass${NC}"
+else
+    echo -e "${RED}✗ Fail${NC}"
+    echo "$GEOMETRY_ERR" | sed -n '1,12p'
+    FAILURES=$((FAILURES + 1))
+fi
+
+# Check 4: composition-quality budget
+echo -n "Checking composition quality... "
+if COMPOSITION_ERR=$(python3 "${SCRIPT_DIR}/validate_svg.py" "$SVG_FILE" --check composition 2>&1); then
+    echo -e "${GREEN}✓ Pass${NC}"
+else
+    echo -e "${RED}✗ Fail${NC}"
+    echo "$COMPOSITION_ERR" | sed -n '1,12p'
+    FAILURES=$((FAILURES + 1))
+fi
+
+# Check 5: render validation (cairosvg preferred, rsvg-convert fallback)
 echo -n "Running render validation... "
 RENDER_OK=false
 RENDER_TOOL=""

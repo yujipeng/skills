@@ -12,7 +12,7 @@
 
 #### Connection Point Rules
 - **Never connect arrows to component corners** - use midpoints of edges
-- **Entry/exit points**: 
+- **Entry/exit points**:
   - Top edge: `cx ± offset` where offset = 0 for single arrow, ±30px for multiple
   - Bottom edge: same rule
   - Left/right edges: `cy ± offset`
@@ -20,7 +20,7 @@
 
 #### Arrow Path Routing
 - **Avoid diagonal lines crossing components** - use orthogonal routing (L-shaped paths)
-- **For curved arrows**: 
+- **For curved arrows**:
   - Control point should be at least 40px away from any component edge
   - Use intermediate waypoints for complex routing: `M x1,y1 L x2,y2 Q cx,cy x3,y3`
 - **Multiple arrows between same layers**: stagger Y-coordinates by 15-20px to avoid overlap

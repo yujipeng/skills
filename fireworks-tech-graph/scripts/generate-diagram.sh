@@ -25,7 +25,7 @@ Usage: $0 [OPTIONS]
 
 Options:
     -t, --type TYPE        Diagram type ($VALID_TYPES)
-    -s, --style STYLE      Style number (1-8, default: 1)
+    -s, --style STYLE      Style number (1-12, default: 1)
     -o, --output PATH      Output path (default: current directory)
     -w, --width WIDTH      PNG width in pixels (default: 1920)
     --no-validate          Skip validation
@@ -122,7 +122,7 @@ STYLE_FILE=$(find "${SKILL_DIR}/references" -maxdepth 1 -type f -name "style-${S
 
 if [ -z "${STYLE_FILE:-}" ] || [ ! -f "$STYLE_FILE" ]; then
     echo -e "${RED}Error: Style file not found: ${STYLE_FILE}${NC}"
-    echo "Available styles: 1-8"
+    echo "Available styles: 1-12"
     exit 1
 fi
 
