@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TEST_DIR="${SKILL_DIR}/test-output"
+TEST_DIR="${TEST_OUTPUT_DIR:-${SKILL_DIR}/test-output}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 echo -e "${BLUE}=== Fireworks Tech Graph - Batch Test ===${NC}"
@@ -24,8 +24,27 @@ echo ""
 mkdir -p "$TEST_DIR"
 
 # Test configuration
-STYLES=(1 2 3 4 5 6 7 8)
-STYLE_NAMES=("Flat Icon" "Dark Terminal" "Blueprint" "Notion Clean" "Glassmorphism" "Claude Official" "OpenAI Official" "Dark Luxury")
+STYLES=(1 2 3 4 5 6 7 8 9 10 11 12)
+STYLE_NAMES=("Flat Icon" "Dark Terminal" "Blueprint" "Notion Clean" "Glassmorphism" "Claude Official" "OpenAI" "Dark Luxury" "C4 Review Canvas" "Cloud Fabric" "Event Transit" "Ops Pulse")
+PNG_WIDTH=1920
+
+export_png() {
+    local svg_file="$1"
+    local png_file="$2"
+
+    # Keep both renderer branches on the same public 1920px contract. Using
+    # CairoSVG's scale would make output width depend on each SVG viewBox.
+    if python3 -c "import cairosvg" 2>/dev/null \
+        && python3 -c "import sys, cairosvg; cairosvg.svg2png(url=sys.argv[1], write_to=sys.argv[2], output_width=int(sys.argv[3]))" \
+            "$svg_file" "$png_file" "$PNG_WIDTH" 2>/dev/null; then
+        return 0
+    fi
+    if command -v rsvg-convert &> /dev/null \
+        && rsvg-convert -w "$PNG_WIDTH" "$svg_file" -o "$png_file" 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
 
 # Summary counters
 TOTAL=0
@@ -40,9 +59,9 @@ echo "----------------------------------------"
 for i in "${!STYLES[@]}"; do
     STYLE="${STYLES[$i]}"
     STYLE_NAME="${STYLE_NAMES[$i]}"
-    
+
     echo -e "\n${YELLOW}Style $STYLE: $STYLE_NAME${NC}"
-    
+
     # Check if style reference exists
     STYLE_FILE=$(find "${SKILL_DIR}/references" -maxdepth 1 -type f -name "style-${STYLE}-*.md" | head -n 1)
     if [ -z "${STYLE_FILE:-}" ] || [ ! -f "$STYLE_FILE" ]; then
@@ -51,11 +70,13 @@ for i in "${!STYLES[@]}"; do
         TOTAL=$((TOTAL + 1))
         continue
     fi
-    
+
     echo -e "${GREEN}✓ Style file found${NC}"
-    
+
     if [ ! -d "$FIXTURES_DIR" ]; then
-        echo -e "${YELLOW}⚠ Fixtures directory not found: $FIXTURES_DIR${NC}"
+        echo -e "${RED}✗ Fixtures directory not found: $FIXTURES_DIR${NC}"
+        FAILED=$((FAILED + 1))
+        TOTAL=$((TOTAL + 1))
         continue
     fi
 
@@ -79,7 +100,9 @@ PY
 
     STATIC_FIXTURE_FILES=$(find "$FIXTURES_DIR" -maxdepth 1 -type f -name "*-style${STYLE}.svg" | sort || true)
     if [ "$MATCHED_COUNT" -eq 0 ] && [ -z "$STATIC_FIXTURE_FILES" ]; then
-        echo -e "${YELLOW}⚠ No regression fixtures found for style $STYLE${NC}"
+        echo -e "${RED}✗ No regression fixtures found for style $STYLE${NC}"
+        FAILED=$((FAILED + 1))
+        TOTAL=$((TOTAL + 1))
         continue
     fi
 
@@ -103,16 +126,8 @@ PY
 
         if python3 "${SKILL_DIR}/scripts/generate-from-template.py" "$TEMPLATE_TYPE" "$SVG_FILE" "$(cat "$FIXTURE")" > /dev/null 2>&1 \
             && "${SKILL_DIR}/scripts/validate-svg.sh" "$SVG_FILE" > /dev/null 2>&1; then
-            PNG_OK=false
-            # Prefer cairosvg (best CSS support); fall back to rsvg-convert
-            if python3 -c "import cairosvg" 2>/dev/null \
-                && python3 -c "import cairosvg; cairosvg.svg2png(url='${SVG_FILE}', write_to='${PNG_FILE}', scale=2)" 2>/dev/null; then
-                PNG_OK=true
-            elif command -v rsvg-convert &> /dev/null \
-                && rsvg-convert -w 1920 "$SVG_FILE" -o "$PNG_FILE" 2>/dev/null; then
-                PNG_OK=true
-            fi
-            if [ "$PNG_OK" = true ]; then
+            # Prefer CairoSVG (best CSS support); fall back to rsvg-convert.
+            if export_png "$SVG_FILE" "$PNG_FILE"; then
                 PNG_SIZE=$(du -h "$PNG_FILE" | cut -f1)
                 echo -e "${GREEN}✓ Pass${NC} (${PNG_SIZE})"
                 PASSED=$((PASSED + 1))
@@ -141,15 +156,7 @@ PY
         cp "$FIXTURE" "$SVG_FILE"
 
         if "${SKILL_DIR}/scripts/validate-svg.sh" "$SVG_FILE" > /dev/null 2>&1; then
-            PNG_OK=false
-            if python3 -c "import cairosvg" 2>/dev/null \
-                && python3 -c "import cairosvg; cairosvg.svg2png(url='${SVG_FILE}', write_to='${PNG_FILE}', scale=2)" 2>/dev/null; then
-                PNG_OK=true
-            elif command -v rsvg-convert &> /dev/null \
-                && rsvg-convert -w 1920 "$SVG_FILE" -o "$PNG_FILE" 2>/dev/null; then
-                PNG_OK=true
-            fi
-            if [ "$PNG_OK" = true ]; then
+            if export_png "$SVG_FILE" "$PNG_FILE"; then
                 PNG_SIZE=$(du -h "$PNG_FILE" | cut -f1)
                 echo -e "${GREEN}✓ Pass${NC} (${PNG_SIZE})"
                 PASSED=$((PASSED + 1))
