@@ -5,7 +5,7 @@ metadata:
   site: ai-exam.tcredit.com
   browser_type: chrome-direct
   auth: 飞书 (Feishu) OAuth，JWT 存于 localStorage['token']
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # tcredit-exam-solver
@@ -81,14 +81,14 @@ Step 7: 二次核查答案 → 提交 → 报告成绩
 打开浏览器并导航到目标页面：
 
 ```bash
-browser-act --session exam1 browser open direct_local_103005226035839153 https://ai-exam.tcredit.com/exam
-browser-act --session exam1 wait stable
+browser-act --session exam2 browser open direct_local_103005226035839153 https://ai-exam.tcredit.com/exam
+browser-act --session exam2 wait stable
 ```
 
 执行登录检查脚本：
 
 ```bash
-browser-act --session exam1 eval "$(python scripts/check_login.py)"
+browser-act --session exam2 eval "$(python scripts/check_login.py)"
 ```
 
 **解读结果**：
@@ -103,7 +103,7 @@ browser-act --session exam1 eval "$(python scripts/check_login.py)"
 若用户需要在自动化浏览器中登录（而非已有的 Chrome），执行：
 
 ```bash
-browser-act --session exam1 remote-assist --objective "请用飞书扫码完成登录，登录成功后点击确认"
+browser-act --session exam2 remote-assist --objective "请用飞书扫码完成登录，登录成功后点击确认"
 ```
 
 **登录完成后**：重新执行 `check_login.py` 验证登录状态再继续。
@@ -113,7 +113,7 @@ browser-act --session exam1 remote-assist --objective "请用飞书扫码完成�
 ## Step 2 — 列出考试系列，让用户选择
 
 ```bash
-browser-act --session exam1 eval "$(python scripts/list_exams.py)"
+browser-act --session exam2 eval "$(python scripts/list_exams.py)"
 ```
 
 将返回的 `exams` 数组格式化展示给用户，例如：
@@ -134,7 +134,7 @@ browser-act --session exam1 eval "$(python scripts/list_exams.py)"
 ## Step 3 — 检查并处理进行中的考试
 
 ```bash
-browser-act --session exam1 eval "$(python scripts/get_attempts.py)"
+browser-act --session exam2 eval "$(python scripts/get_attempts.py)"
 ```
 
 **逻辑判断**：
@@ -142,7 +142,7 @@ browser-act --session exam1 eval "$(python scripts/get_attempts.py)"
 - 若不存在 → 创建新考试：
 
 ```bash
-browser-act --session exam1 eval "$(python scripts/start_exam.py <exam_id>)"
+browser-act --session exam2 eval "$(python scripts/start_exam.py <exam_id>)"
 ```
 
 记录返回值：
@@ -157,7 +157,7 @@ browser-act --session exam1 eval "$(python scripts/start_exam.py <exam_id>)"
 ## Step 4 — 获取题目和选项（每次作答必须重新获取）
 
 ```bash
-browser-act --session exam1 eval "$(python scripts/get_questions.py <exam_id> <attempt_id>)"
+browser-act --session exam2 eval "$(python scripts/get_questions.py <exam_id> <attempt_id>)"
 ```
 
 **关键约束**：
@@ -193,33 +193,59 @@ browser-act --session exam1 eval "$(python scripts/get_questions.py <exam_id> <a
 
 ### 5a. 读取培训材料原文
 
-答题前必须先读取以下两份培训材料 PDF，以原始材料内容为准，不得仅依赖记忆或摘要。
+答题前必须先读取对应的培训材料 PDF，以原始材料内容为准，不得仅依赖记忆或摘要。
 
-四份文件已内置在 Skill 目录中，路径为（相对于本 SKILL.md 所在目录）：
+#### exam_id → 培训材料映射表
+
+| exam_id | 考试名称 | 对应培训材料 PDF |
+|---------|---------|----------------|
+| 30 | 业务问题定义考试 | `第1期-业务定义问题培训材料 6.17.pdf` |
+| 29 | 系统问题定义考试 | `第2期-系统架构培训材料6.18.pdf` |
+| 28 | 测试问题定义考试 | `第3期-测试定义问题培训材料6.22.pdf` |
+| 31 | AI编排能力考试 | `第4期-AI编排培训材料6.23.pdf` |
+| 32 | AI智能体技术考试 | `第5期-AI智能体工程培训材料6.24.pdf` |
+| 33 | 【非产研运】AI 能力认知与方法 | `AI-First 非研发转型培训（一）· 认知与方法 · 投影版V2.pdf` + `AI-First 非研发转型培训（二）· 岗位落地与数字员工 .pptx` |
+| 其他 | 新增考试 | 见下方「材料缺失处理」 |
+
+五份文件已内置在 Skill 目录（`~/.claude/skills/tcredit-exam-solver/`）中，支持 `.pdf` 和 `.pptx` 两种格式：
 
 ```
-第1期-业务定义问题培训材料 6.17.pdf   ← 业务问题定义工程
-第2期-系统架构培训材料6.18.pdf        ← 系统架构设计工程
-第3期-测试定义问题培训材料6.22.pdf    ← 测试定义问题工程
-第4期-AI编排培训材料6.23.pdf          ← AI 编排工程
+第1期-业务定义问题培训材料 6.17.pdf   ← 业务问题定义工程（exam 30）
+第2期-系统架构培训材料6.18.pdf        ← 系统架构设计工程（exam 29）
+第3期-测试定义问题培训材料6.22.pdf    ← 测试定义问题工程（exam 28）
+第4期-AI编排培训材料6.23.pdf          ← AI 编排工程（exam 31）
+第5期-AI智能体工程培训材料6.24.pdf    ← AI 智能体技术（exam 32）
+AI-First 非研发转型培训（一）· 认知与方法 · 投影版V2.pdf   ← 非产研运 AI 能力（exam 33，第一部分）
+AI-First 非研发转型培训（二）· 岗位落地与数字员工 .pptx    ← 非产研运 AI 能力（exam 33，第二部分）
 ```
 
-使用 Read 工具读取（路径基于本 Skill 的安装目录，Claude Code 原生支持读取 PDF）：
+#### 读取方式（按格式区分）
 
+**PDF 格式**：直接用 Read 工具读取：
 ```
-Read <skill_dir>/第1期-业务定义问题培训材料 6.17.pdf
-Read <skill_dir>/第2期-系统架构培训材料6.18.pdf
-Read <skill_dir>/第3期-测试定义问题培训材料6.22.pdf
-Read <skill_dir>/第4期-AI编排培训材料6.23.pdf
+Read ~/.claude/skills/tcredit-exam-solver/<文件名>.pdf
 ```
 
-> `<skill_dir>` 为本 SKILL.md 所在的绝对目录路径。若通过 `~/.claude/skills/tcredit-exam-solver/` 安装，则路径为：
-> - `~/.claude/skills/tcredit-exam-solver/第1期-业务定义问题培训材料 6.17.pdf`
-> - `~/.claude/skills/tcredit-exam-solver/第2期-系统架构培训材料6.18.pdf`
-> - `~/.claude/skills/tcredit-exam-solver/第3期-测试定义问题培训材料6.22.pdf`
-> - `~/.claude/skills/tcredit-exam-solver/第4期-AI编排培训材料6.23.pdf`
+**PPTX 格式**：Read 工具不支持 PPTX，使用 `document-skills:pptx` skill 读取：
+```
+Skill("document-skills:pptx", "~/.claude/skills/tcredit-exam-solver/<文件名>.pptx")
+```
 
-若文件不存在或无法读取，提示用户将 PDF 放回 Skill 目录后重试，并暂停执行。
+若 `document-skills:pptx` skill 不可用，告知用户：
+> ⚠️ 当前环境无法直接读取 PPTX 文件。请将 `{文件名}.pptx` 转换为 PDF 后放入同一目录，或将 PPT 页面截图发给我。
+
+#### 材料缺失处理
+
+在读取前，先用 `ls ~/.claude/skills/tcredit-exam-solver/` 确认文件存在（检查 .pdf 和 .pptx 两种后缀）。
+
+**若对应文件不存在**，停止执行并告知用户：
+
+> ⚠️ 未找到考试「{exam_name}」的培训材料（PDF 或 PPTX 均未找到）。请将对应的培训文件放入以下目录后重试：
+> `~/.claude/skills/tcredit-exam-solver/`
+>
+> 若您有该期培训材料，也可直接将文件截图发给我，我将根据图片内容作答。
+
+若用户通过图片/截图方式提供培训材料，接收并解析图片内容后继续作答，无需暂停。
 
 ### 5b. 逐题分析
 
@@ -274,7 +300,7 @@ ANSWERS_JSON='[{"question_id":874,"answer":"D"},{"question_id":873,"answer":"A"}
 ### 提交
 
 ```bash
-browser-act --session exam1 eval "$(python scripts/submit_exam.py <exam_id> <attempt_id> "$ANSWERS_JSON")"
+browser-act --session exam2 eval "$(python scripts/submit_exam.py <exam_id> <attempt_id> "$ANSWERS_JSON")"
 ```
 
 **成功响应**：
@@ -308,7 +334,7 @@ browser-act --session exam1 eval "$(python scripts/submit_exam.py <exam_id> <att
 完成后关闭浏览器会话（不影响用户的 Chrome 进程）：
 
 ```bash
-browser-act session close exam1
+browser-act session close exam2
 ```
 
 ---
