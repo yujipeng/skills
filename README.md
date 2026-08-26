@@ -11,7 +11,7 @@
 第三方 AI API 中转 / 代理服务的安全审计工具（红队向）。
 
 - **来源**：[toby-bridges/api-relay-audit](https://github.com/toby-bridges/api-relay-audit)
-- **版本**：v2.3.0
+- **版本**：v2.4.0
 - **License**：AGPL-3.0-only（作者 Toby Bridges，再分发注意传染性条款）
 - **依赖**：Python 3 + `curl`，零第三方库
 
@@ -99,7 +99,7 @@ Browser automation CLI for AI agents。提供 Stealth 反检测浏览器、Chrom
 给 AI Agent 装上完整联网能力的 Skill — 联网策略 + CDP 浏览器操作 + 站点经验积累，兼容所有支持 SKILL.md 的 Agent（Claude Code、Cursor、Gemini CLI、Codex CLI 等）。
 
 - **来源**：[eze-is/web-access](https://github.com/eze-is/web-access)
-- **版本**：v2.5.3
+- **版本**：v2.5.4
 - **License**：MIT
 - **依赖**：Node.js 22+（原生 WebSocket）、Chrome / Edge / Chromium 系浏览器
 
@@ -113,8 +113,8 @@ Browser automation CLI for AI agents。提供 Stealth 反检测浏览器、Chrom
 
 将 AI 生成文本改写为更自然人类风格的 Skill。基于 Wikipedia「AI 写作特征」指南，系统检测并修正：浮夸象征手法、推广性语言、空洞 -ing 分析、模糊归因、em dash 滥用、三段式、AI 特征词汇、负向平行句、过量连接短语等。
 
-- **版本**：v2.1.1
-- **来源**：clawic.com skill 市场
+- **版本**：v2.11.1
+- **来源**：[blader/humanizer](https://github.com/blader/humanizer)
 - **依赖**：无（纯提示工程）
 
 ---

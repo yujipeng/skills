@@ -70,20 +70,20 @@ node web-access/scripts/check-deps.mjs
 
 ## 版本管理
 
-- `api-relay-audit` 来源：`toby-bridges/api-relay-audit` v2.3.0（AGPL-3.0-only）
+- `api-relay-audit` 来源：`toby-bridges/api-relay-audit` v2.4.0（AGPL-3.0-only）
 - `api-relay-perf-bench` 作者：gigi1121，v1.0.0（AGPL-3.0-only）
 - `browser-act` 来源：[BrowserAct](https://www.browseract.com) v2.0.2（安装：`uv tool install browser-act-cli --python 3.12`）
 - `browser-act-skill-forge` 来源：[BrowserAct](https://www.browseract.com) v1.0.6
 - `fireworks-tech-graph` 来源：[yizhiyanhua-ai/fireworks-tech-graph](https://github.com/yizhiyanhua-ai/fireworks-tech-graph) v1.2.0（MIT）
 - `frontend-design` 来源：[anthropics/skills](https://github.com/anthropics/skills/tree/main/skills/frontend-design) `main`（许可证见 `frontend-design/LICENSE.txt`）
 - `guizang-ppt-skill` 来源：[op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) `main`（AGPL-3.0）
-- `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.9.1（MIT）
+- `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.11.1（MIT）
 - `humanizer-zh` 来源：[op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) `main`（MIT）
 - `prototype-html` 来源：[vagerent/prototype-html](https://github.com/vagerent/prototype-html) v1.0.0（Apache-2.0）
 - `self-improving` 来源：[clawic.com/skills/self-improving](https://clawic.com/skills/self-improving) v1.2.16
 - `tc-exam-solver` 内部 skill，v1.0.0（针对 ai-exam.tcredit.com）
 - `tc-protohub` 来源：[airclear/skills](https://github.com/airclear/skills/tree/main/skills/tc-protohub) `main`（本地元数据 v1.0.0；默认 `PROTOHUB_URL` 已适配 tcredit 测试环境）
-- `web-access` 来源：[eze-is/web-access](https://github.com/eze-is/web-access) v2.5.3（MIT 许可证）
+- `web-access` 来源：[eze-is/web-access](https://github.com/eze-is/web-access) v2.5.4（MIT 许可证）
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 

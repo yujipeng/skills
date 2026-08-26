@@ -1,7 +1,7 @@
 ---
 name: api-relay-audit
 description: Use when auditing third-party AI API relays, proxy APIs, or API-key resale services for hidden prompt injection, prompt leakage, instruction override, context truncation, tool-call substitution, error leakage, SSE stream anomalies, Web3 wallet-safety prompt injection, infrastructure fingerprints, latency variance, and upstream channel mismatches.
-version: 2.3.0
+version: 2.4.0
 author: Toby Bridges
 license: AGPL-3.0-only
 platforms: [linux, macos]
@@ -109,7 +109,7 @@ set -euo pipefail
 : "${API_RELAY_AUDIT_URL:?Set API_RELAY_AUDIT_URL to the relay base URL}"
 
 WORKDIR="$(mktemp -d)"
-AUDIT_SCRIPT_REF=fa12ae8513ef77c13c4cd8227a47e9121a257504
+AUDIT_SCRIPT_REF=v2.4.0
 
 curl -fsSL \
   "https://raw.githubusercontent.com/toby-bridges/api-relay-audit/${AUDIT_SCRIPT_REF}/audit.py" \

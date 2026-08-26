@@ -1,7 +1,7 @@
 ---
 name: web-access
 description: "Use when the user needs to access the web — searching, fetching pages, scraping, logging in, interacting with browser UI, extracting content from dynamic or anti-bot pages (小红书, 微信公众号, 微博, Twitter, etc.), navigating authenticated sessions, or any task requiring a real browser environment."
-version: "2.5.3"
+version: "2.5.4"
 author: 一泽Eze
 license: MIT
 github: https://github.com/eze-is/web-access
@@ -76,6 +76,14 @@ node "${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs"
 - **读**：用 `/eval` 提取文字内容，判断图片/视频是否承载核心信息——是则提取媒体 URL 定向读取或 `/screenshot` 视觉识别
 
 浏览网页时，**先了解页面结构，再决定下一步动作**。不需要提前规划所有步骤。
+
+### 页面就绪与完成判断
+
+`/new` 或 `/navigate` 返回，只代表浏览器完成了当前文档的基础加载，不代表用户需要的内容已经出现。HTTP 200、`document.readyState === "complete"`、页面标题出现或导航调用成功，都不能单独作为任务完成标准。
+
+导航后先用 `/eval` 检查目标内容。若目标内容尚未出现，而页面仍是空白、加载态、验证页、登录跳转或其它可能继续变化的中间状态，在默认 15 秒窗口内持续观察 URL、标题和 DOM；页面发生跳转或内容变化后重新判断。只有目标内容已经获取，或观察窗口结束后仍存在明确阻碍，才能继续提取或报告失败。
+
+站点经验可以提供更精确的选择器、等待条件和已知中间状态，但只用于加速判断；即使没有站点经验，也必须遵循上述目标内容就绪规则。
 
 ### 补充：本地浏览器资源
 

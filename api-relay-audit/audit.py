@@ -4,16 +4,17 @@
 # Regenerate after modular audit changes with:
 #   python3 scripts/build-standalone.py
 # CI verifies this generated artifact plus key behavior regressions.
-# source_sha256: 49447d8ba16907a029aaf44fb92364e00eabbef083cfd68efedef200dbf24767
-# standalone_body_sha256: 7f03317771b8483a30f169ad76de55086660d4106fe43984f8a9c1d9f09a152c
+# source_sha256: 1cf00fc214575eb3f6fd92e84cc8a596451ec9bf1409b2bd9a150c5dbdb30a56
+# standalone_body_sha256: 510f914cf8ed38cb9068f4f5a16c4576593726cdca1f059ddc28181a819ff3cb
 # END GENERATED STANDALONE HEADER
 
 """
-API Relay Security Audit Tool v2.3 --- Standalone Edition
+API Relay Security Audit Tool v2.4 --- Standalone Edition
 
 Generated curl-only artifact for users who want:
 
-  curl -sO https://raw.githubusercontent.com/toby-bridges/api-relay-audit/master/audit.py
+  AUDIT_SCRIPT_REF=v2.4.0
+  curl -fsSL "https://raw.githubusercontent.com/toby-bridges/api-relay-audit/${AUDIT_SCRIPT_REF}/audit.py" -o audit.py
   python audit.py --key YOUR_KEY --url https://relay.example.com/v1
 
 The detection semantics below are generated from the modular source files
@@ -158,7 +159,7 @@ has something to populate.
 ## Detection approach
 
 A malicious relay that rewrites or proxies Claude's streaming
-responses can be caught at three distinct layers, even if the final
+responses can be caught at four distinct layers, even if the final
 text the user sees looks correct:
 
 1. **SSE event whitelist.** Anthropic's stream schema uses exactly
@@ -179,6 +180,10 @@ text the user sees looks correct:
    a non-thinking model and fakes the surrounding stream events may
    leave the signatures empty. :attr:`StreamSignals.empty_signature_delta_count`
    counts these.
+4. **Terminal completeness.** A valid Anthropic message has exactly one
+   ``message_stop`` after ``message_start``, with no later content event.
+   Trailing ``ping`` keepalives are allowed. A graceful HTTP close or a
+   generic ``[DONE]`` sentinel does not replace this protocol terminator.
 
 ## Attribution
 
@@ -389,6 +394,18 @@ def _check_stream_model(signals: "StreamSignals") -> bool:
     return "claude" in signals.message_start_model.lower()
 
 
+def _check_stream_complete(signals: "StreamSignals") -> bool:
+    """Require one terminal ``message_stop`` after ``message_start``."""
+    non_ping_events = [event for event in signals.event_types if event != "ping"]
+    if non_ping_events.count("message_stop") != 1:
+        return False
+    if "message_start" not in non_ping_events:
+        return False
+    start_index = non_ping_events.index("message_start")
+    stop_index = non_ping_events.index("message_stop")
+    return start_index < stop_index == len(non_ping_events) - 1
+
+
 def analyze_stream(signals: "StreamSignals") -> dict:
     """Analyze a populated :class:`StreamSignals` for integrity anomalies.
 
@@ -401,6 +418,8 @@ def analyze_stream(signals: "StreamSignals") -> dict:
     - ``usage_monotonic``: bool
     - ``usage_consistent``: bool
     - ``signature_valid``: bool
+    - ``stream_complete``: bool; exactly one terminal ``message_stop`` was
+      observed after ``message_start`` (trailing pings are allowed)
     - ``stream_model_name``: ``message_start.message.model`` or ``None``
     - ``stream_model_is_claude``: bool
     - ``findings``: list of human-readable reasons (empty on clean)
@@ -413,7 +432,8 @@ def analyze_stream(signals: "StreamSignals") -> dict:
        either broken or non-Anthropic; we have no basis to judge).
     2. **anomaly** — at least one of: unknown event types present,
        usage non-monotonic, usage inconsistent, empty
-       ``signature_delta`` count > 0, stream model name non-Claude.
+       ``signature_delta`` count > 0, missing/duplicate/misordered terminal
+       ``message_stop``, stream model name non-Claude.
     3. **clean** — none of the above triggered.
 
     The function is pure and deterministic: identical input always
@@ -428,6 +448,7 @@ def analyze_stream(signals: "StreamSignals") -> dict:
             "usage_monotonic": True,
             "usage_consistent": True,
             "signature_valid": True,
+            "stream_complete": False,
             "stream_model_name": signals.message_start_model,
             "stream_model_is_claude": True,
             "findings": [f"Stream transport error: {signals.transport_error}"],
@@ -443,6 +464,7 @@ def analyze_stream(signals: "StreamSignals") -> dict:
             "usage_monotonic": True,
             "usage_consistent": True,
             "signature_valid": True,
+            "stream_complete": False,
             "stream_model_name": signals.message_start_model,
             "stream_model_is_claude": True,
             "findings": [
@@ -461,6 +483,7 @@ def analyze_stream(signals: "StreamSignals") -> dict:
     usage_monotonic = _check_usage_monotonic(signals)
     usage_consistent = _check_usage_consistent(signals)
     signature_valid = signals.empty_signature_delta_count == 0
+    stream_complete = _check_stream_complete(signals)
     stream_model_is_claude = _check_stream_model(signals)
 
     findings = []
@@ -486,6 +509,32 @@ def analyze_stream(signals: "StreamSignals") -> dict:
             f"{signals.empty_signature_delta_count} signature_delta event(s) "
             "had empty signatures — thinking block downgrade or rewriter"
         )
+    if not stream_complete:
+        stop_count = signals.event_types.count("message_stop")
+        non_ping_events = [event for event in signals.event_types if event != "ping"]
+        if stop_count == 0:
+            findings.append(
+                "Stream ended without message_stop — a truncated Anthropic "
+                "response was not completed"
+            )
+        elif stop_count > 1:
+            findings.append(
+                f"Stream contained {stop_count} message_stop events — "
+                "the terminal marker must appear exactly once"
+            )
+        elif "message_start" not in non_ping_events or (
+            non_ping_events.index("message_stop")
+            < non_ping_events.index("message_start")
+        ):
+            findings.append(
+                "message_stop appeared before message_start — invalid "
+                "Anthropic stream ordering"
+            )
+        else:
+            findings.append(
+                "Non-ping SSE events appeared after message_stop — the "
+                "terminal marker was not final"
+            )
     if not stream_model_is_claude:
         if signals.message_start_model:
             findings.append(
@@ -504,6 +553,7 @@ def analyze_stream(signals: "StreamSignals") -> dict:
         or not usage_monotonic
         or not usage_consistent
         or not signature_valid
+        or not stream_complete
         or not stream_model_is_claude
     )
 
@@ -515,7 +565,12 @@ def analyze_stream(signals: "StreamSignals") -> dict:
         signals.has_message_delta,
         signals.has_message_stop,
     ])
-    if shape_flags_seen >= 4 and signals.has_text_delta and not unknown_events:
+    if (
+        shape_flags_seen >= 4
+        and signals.has_text_delta
+        and not unknown_events
+        and stream_complete
+    ):
         event_shape = "pass"
     elif shape_flags_seen >= 2:
         event_shape = "partial"
@@ -529,6 +584,7 @@ def analyze_stream(signals: "StreamSignals") -> dict:
         "usage_monotonic": usage_monotonic,
         "usage_consistent": usage_consistent,
         "signature_valid": signature_valid,
+        "stream_complete": stream_complete,
         "stream_model_name": signals.message_start_model,
         "stream_model_is_claude": stream_model_is_claude,
         "findings": findings,
@@ -550,7 +606,18 @@ import json
 import os
 import subprocess
 import tempfile
+from urllib.parse import urlparse
 
+
+LOOPBACK_NO_PROXY = "localhost,127.0.0.1,::1"
+LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def curl_loopback_no_proxy_args(url: str) -> list:
+    """Return curl args that keep loopback URLs out of proxy env routing."""
+    if urlparse(url).hostname in LOOPBACK_HOSTS:
+        return ["--noproxy", LOOPBACK_NO_PROXY]
+    return []
 
 
 def curl_post_json(url: str, headers: dict, body: dict, timeout: int,
@@ -570,8 +637,8 @@ def curl_post_json(url: str, headers: dict, body: dict, timeout: int,
             json.dump(body, tmp)
             body_path = tmp.name
 
-        cmd = ["curl", "-sk", "-X", "POST", url, "--max-time", str(timeout),
-               "--config", "-", "--data-binary", f"@{body_path}"]
+        cmd = ["curl", "-sk", *curl_loopback_no_proxy_args(url), "-X", "POST", url,
+               "--max-time", str(timeout), "--config", "-", "--data-binary", f"@{body_path}"]
         config = "\n".join(f'header = "{k}: {v}"' for k, v in headers.items())
         r = subprocess_module.run(cmd, capture_output=True, text=True, input=config,
                                   timeout=timeout + 10)
@@ -592,7 +659,8 @@ def curl_post_json(url: str, headers: dict, body: dict, timeout: int,
 def curl_get_json_data(url: str, headers: dict, timeout: int = 15,
                        subprocess_module=subprocess) -> list:
     """GET JSON through curl and return the top-level ``data`` list."""
-    cmd = ["curl", "-sk", url, "--max-time", str(timeout), "--config", "-"]
+    cmd = ["curl", "-sk", *curl_loopback_no_proxy_args(url), url,
+           "--max-time", str(timeout), "--config", "-"]
     config = "\n".join(f'header = "{k}: {v}"' for k, v in headers.items())
     r = subprocess_module.run(cmd, capture_output=True, text=True, input=config,
                               timeout=timeout + 10)
@@ -610,7 +678,7 @@ def curl_raw_request(method: str, url: str, headers: dict, body: bytes,
                      subprocess_module=subprocess) -> dict:
     """Raw request through curl and parse ``curl -i`` output with ``parser``."""
     all_headers = {**headers, "content-type": content_type}
-    cmd = ["curl", "-sk", "-i", "-X", method, url,
+    cmd = ["curl", "-sk", *curl_loopback_no_proxy_args(url), "-i", "-X", method, url,
            "--max-time", str(timeout), "--data-binary", "@-"]
     for k, v in all_headers.items():
         cmd.extend(["-H", f"{k}: {v}"])
@@ -633,7 +701,10 @@ def httpx_post_json(url: str, headers: dict, body: dict, timeout: int) -> dict:
 
 def httpx_get_json_data(url: str, headers: dict, timeout: int = 15):
     """Standalone compatibility wrapper: GET JSON through curl -i."""
-    cmd = ["curl", "-sk", "-i", url, "--max-time", str(timeout), "--config", "-"]
+    cmd = [
+        "curl", "-sk", *curl_loopback_no_proxy_args(url),
+        "-i", url, "--max-time", str(timeout), "--config", "-"
+    ]
     config = "\n".join(f'header = "{k}: {v}"' for k, v in headers.items())
     r = subprocess.run(
         cmd,
@@ -671,6 +742,7 @@ def httpx_raw_request(method: str, url: str, headers: dict, body: bytes,
 
 
 class _StandaloneTransport:
+    curl_loopback_no_proxy_args = staticmethod(curl_loopback_no_proxy_args)
     curl_post_json = staticmethod(curl_post_json)
     httpx_post_json = staticmethod(httpx_post_json)
     curl_get_json_data = staticmethod(curl_get_json_data)
@@ -1017,6 +1089,16 @@ class APIClient:
         return _transport.httpx_post_json(
             url, headers, body, self.timeout)
 
+    @staticmethod
+    def _error_result(error, **extra):
+        error_text = str(error)
+        result = {
+            "error": error_text,
+            "diagnosis": diagnose_error(error_text),
+        }
+        result.update(extra)
+        return result
+
     # -- Anthropic native format ----------------------------------------------
 
     def _call_anthropic(self, messages, system=None, max_tokens=512):
@@ -1036,7 +1118,7 @@ class APIClient:
 
         data = self._post(url, headers, body)
         if "_http_error" in data:
-            return {"error": data["_http_error"]}
+            return self._error_result(data["_http_error"])
         text = _extract_anthropic_text(data.get("content"))
         usage = data.get("usage", {})
         return {
@@ -1066,7 +1148,7 @@ class APIClient:
 
         data = self._post(url, headers, body)
         if "_http_error" in data:
-            return {"error": data["_http_error"]}
+            return self._error_result(data["_http_error"])
         choice = data.get("choices", [{}])[0]
         text = choice.get("message", {}).get("content", "")
         usage = data.get("usage", {})
@@ -1153,7 +1235,7 @@ class APIClient:
             self._log_transparent(
                 "call", self._resolve_call_url(), "POST",
                 request_body, None, 0, None, elapsed, str(e))
-            return {"error": str(e), "time": elapsed}
+            return self._error_result(e, time=elapsed)
 
     def _resolve_call_url(self) -> str:
         """Reconstruct the URL used by the last ``call()`` based on detected format."""
@@ -1215,7 +1297,7 @@ class APIClient:
         if openai_result and "error" not in openai_result:
             self._format = "openai"
             return openai_result
-        return anthropic_result or openai_result or {"error": "Both formats failed"}
+        return anthropic_result or openai_result or self._error_result("Both formats failed")
 
     def _handle_ssl_error(self, e: Exception) -> bool:
         """Switch to curl on SSL errors. Returns True if retry is warranted."""
@@ -1507,7 +1589,8 @@ class APIClient:
         incremental stream.
         """
         cmd = [
-            "curl", "-sk", "-N", "--no-buffer", "-X", "POST", url,
+            "curl", "-sk", *_transport.curl_loopback_no_proxy_args(url),
+            "-N", "--no-buffer", "-X", "POST", url,
             "--max-time", str(timeout),
             "-w", f"\n{CURL_STATUS_SENTINEL}%{{http_code}}\n",
             "--data-binary", "@-",
@@ -1596,7 +1679,7 @@ class APIClient:
 
 """Markdown report generator for audit results."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Reporter:
@@ -1673,7 +1756,8 @@ class Reporter:
         self.summary.append((level, msg))
         self.sections.append(f"{icon} **{msg}**\n")
 
-    def render(self, target_url="", model=""):
+    def render(self, target_url="", model="", tool_version="", profile="",
+               tool_commit=""):
         """Render the complete Markdown report.
 
         Produces a header block (title, metadata, risk summary) followed
@@ -1684,6 +1768,11 @@ class Reporter:
                 metadata when provided.
             model: The model identifier used for the audit. Shown in the
                 report metadata when provided.
+            tool_version: API Relay Audit version used for the run.
+            profile: Audit profile used for the run (``general``, ``web3``,
+                or ``full``).
+            tool_commit: Optional git commit for checkout-based runs. Omitted
+                when the standalone script is run outside a repository.
 
         Returns:
             A single Markdown string containing the full report.
@@ -1696,12 +1785,18 @@ class Reporter:
         """
         header = (
             f"# API Relay Security Audit Report\n\n"
-            f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+            f"**Generated**: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
         )
+        if tool_version:
+            header += f"**Tool Version**: `{tool_version}`\n"
+        if profile:
+            header += f"**Profile**: `{profile}`\n"
         if target_url:
             header += f"**Target**: `{target_url}`\n"
         if model:
             header += f"**Model**: `{model}`\n"
+        if tool_commit:
+            header += f"**Tool Commit**: `{tool_commit}`\n"
 
         header += "\n## Risk Summary\n\n"
         for level, msg in self.summary:
@@ -1709,6 +1804,315 @@ class Reporter:
             header += f"- {icon} {msg}\n"
         header += "\n---\n"
         return header + "\n".join(self.sections)
+
+
+# ============================================================
+# Connectivity check
+# ============================================================
+
+"""Fast API relay connectivity checks.
+
+This module is intentionally narrower than the full audit. It sends one
+low-token Anthropic-style chat request and one low-token OpenAI-chat request,
+then reports whether either format is usable. It does not make security
+claims or feed the audit risk matrix.
+"""
+
+import json
+import shlex
+import time
+from dataclasses import dataclass
+
+
+CONNECTIVITY_PROMPT = "Reply with the single word: ok"
+CONNECTIVITY_MAX_TOKENS = 8
+
+
+@dataclass
+class ConnectivityProbeResult:
+    """Result of one connectivity probe."""
+
+    format_name: str
+    endpoint: str
+    auth_style: str
+    status: int
+    elapsed_seconds: float
+    input_tokens: int | None
+    output_tokens: int | None
+    text_preview: str
+    diagnostic: str
+    success: bool
+
+
+def _redact(text: str, api_key: str) -> str:
+    if not text:
+        return ""
+    if api_key:
+        text = text.replace(api_key, "[redacted-api-key]")
+    return text
+
+
+def _markdown_escape(text: str) -> str:
+    text = _redact(str(text), "")
+    return (
+        text.replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .strip()
+    )
+
+
+def _text_from_content(content) -> str:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    parts = []
+    for block in content:
+        if isinstance(block, dict):
+            text = block.get("text")
+            if isinstance(text, str):
+                parts.append(text)
+    return "".join(parts)
+
+
+def _parse_anthropic_response(data: dict) -> tuple[str, int | None, int | None]:
+    usage = data.get("usage", {}) if isinstance(data, dict) else {}
+    if not isinstance(usage, dict):
+        usage = {}
+    return (
+        _text_from_content(data.get("content")),
+        usage.get("input_tokens") if isinstance(usage.get("input_tokens"), int) else None,
+        usage.get("output_tokens") if isinstance(usage.get("output_tokens"), int) else None,
+    )
+
+
+def _parse_openai_response(data: dict) -> tuple[str, int | None, int | None]:
+    usage = data.get("usage", {}) if isinstance(data, dict) else {}
+    if not isinstance(usage, dict):
+        usage = {}
+    choices = data.get("choices", []) if isinstance(data, dict) else []
+    first_choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+    message = first_choice.get("message", {})
+    text = ""
+    if isinstance(message, dict):
+        text = _text_from_content(message.get("content"))
+    if not text:
+        text = _text_from_content(first_choice.get("text"))
+    return (
+        text,
+        usage.get("prompt_tokens") if isinstance(usage.get("prompt_tokens"), int) else None,
+        usage.get("completion_tokens") if isinstance(usage.get("completion_tokens"), int) else None,
+    )
+
+
+def _headers_summary(headers: dict) -> str:
+    if not headers:
+        return "no response headers"
+    lowered = {str(k).lower(): str(v) for k, v in headers.items()}
+    parts = []
+    content_type = lowered.get("content-type")
+    if content_type:
+        parts.append(f"content-type {content_type.split(';', 1)[0]}")
+    request_headers = [
+        name for name in ("request-id", "x-request-id", "x-openai-request-id")
+        if name in lowered
+    ]
+    if request_headers:
+        parts.append("request id present")
+    return ", ".join(parts) if parts else f"{len(headers)} response headers"
+
+
+def _status_diagnostic(status: int, error: str | None) -> str:
+    if status == 0:
+        return f"Transport failure: {error or 'request did not complete'}"
+    if status in (401, 403):
+        return "Authentication or authorization failed; check key, model access, balance, and auth style."
+    if status == 404:
+        return "Endpoint not found; check the base URL and whether this relay supports the format."
+    if status == 429:
+        return "Rate limited or quota exhausted; check relay quota or retry later."
+    if status == 400:
+        return "Bad request; the relay may not support this format or model."
+    if status >= 500:
+        return "Relay or upstream server error."
+    if 200 <= status < 300:
+        return "HTTP 2xx received but no usable text was parsed."
+    return f"HTTP {status} received; inspect relay configuration and model access."
+
+
+def _probe(client, format_name: str, endpoint: str, auth_style: str,
+           headers: dict, body: dict, parser) -> ConnectivityProbeResult:
+    start = time.time()
+    response = client.raw_request(
+        "POST",
+        endpoint,
+        headers,
+        json.dumps(body).encode("utf-8"),
+        content_type="application/json",
+        timeout=client.timeout,
+    )
+    elapsed = time.time() - start
+    status = int(response.get("status", 0) or 0)
+    response_error = _redact(str(response.get("error") or ""), client.api_key)
+    diagnostic = _status_diagnostic(status, response_error)
+    text = ""
+    input_tokens = None
+    output_tokens = None
+    success = False
+
+    if 200 <= status < 300:
+        try:
+            data = json.loads(response.get("body") or "")
+        except json.JSONDecodeError:
+            diagnostic = "HTTP 2xx received but response was not valid JSON."
+        else:
+            text, input_tokens, output_tokens = parser(data)
+            text = _redact(text.strip(), client.api_key)
+            if text:
+                success = True
+                diagnostic = f"OK: parsed non-empty text; {_headers_summary(response.get('headers', {}))}."
+            else:
+                diagnostic = "HTTP 2xx received but response JSON did not contain parsed text."
+
+    return ConnectivityProbeResult(
+        format_name=format_name,
+        endpoint=endpoint,
+        auth_style=auth_style,
+        status=status,
+        elapsed_seconds=elapsed,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        text_preview=text[:80],
+        diagnostic=_redact(diagnostic, client.api_key),
+        success=success,
+    )
+
+
+def _render_token_count(value: int | None) -> str:
+    return str(value) if isinstance(value, int) else "-"
+
+
+def _render_status(status: int) -> str:
+    return str(status) if status else "transport"
+
+
+def _next_step(verdict: str, client) -> str:
+    url = shlex.quote(client.base_url)
+    model = shlex.quote(client.model)
+    if verdict in ("OK", "WARNING"):
+        return (
+            "Connectivity reached at least one chat format. For the full security audit, run:\n\n"
+            "```bash\n"
+            "export API_RELAY_AUDIT_KEY=sk-...\n"
+            f"python3 audit.py --key \"$API_RELAY_AUDIT_KEY\" --url {url} --model {model} --output report.md\n"
+            "```"
+        )
+    return (
+        "Connectivity failed for both chat formats. Check the base URL, API key, "
+        "model name, relay balance/quota, and whether the relay supports Anthropic "
+        "or OpenAI Chat endpoints before running the full audit."
+    )
+
+
+def render_connectivity_report(result: dict) -> str:
+    """Render a human-readable connectivity report."""
+    client = result["client"]
+    verdict = result["verdict"]
+    lines = [
+        "# API Relay Connectivity Report",
+        "",
+        f"**Target**: `{client.base_url}`",
+        f"**Model**: `{client.model}`",
+        f"**Timeout**: `{client.timeout}s`",
+        f"**Connectivity Verdict**: **{verdict}**",
+        "",
+        "This is a quick connectivity check, not a security audit. It does not produce a LOW/MEDIUM/HIGH risk rating.",
+        "",
+        "## Probe Results",
+        "",
+        "| Format | Endpoint | Auth style | HTTP status | Elapsed | Tokens | Text preview | Diagnostic |",
+        "|---|---|---|---:|---:|---:|---|---|",
+    ]
+    for probe in result["probes"]:
+        tokens = (
+            f"{_render_token_count(probe.input_tokens)}/"
+            f"{_render_token_count(probe.output_tokens)}"
+        )
+        lines.append(
+            "| "
+            f"{_markdown_escape(probe.format_name)} | "
+            f"`{_markdown_escape(probe.endpoint)}` | "
+            f"{_markdown_escape(probe.auth_style)} | "
+            f"{_render_status(probe.status)} | "
+            f"{probe.elapsed_seconds:.3f}s | "
+            f"{tokens} | "
+            f"{_markdown_escape(probe.text_preview) or '-'} | "
+            f"{_markdown_escape(probe.diagnostic)} |"
+        )
+    lines.extend([
+        "",
+        "## Next Step",
+        "",
+        _next_step(verdict, client),
+        "",
+    ])
+    return "\n".join(lines)
+
+
+def run_connectivity_check(client) -> dict:
+    """Run fixed Anthropic and OpenAI Chat connectivity probes."""
+    common_messages = [{"role": "user", "content": CONNECTIVITY_PROMPT}]
+    probes = [
+        _probe(
+            client,
+            "Anthropic Chat",
+            "/v1/messages",
+            "x-api-key",
+            {
+                "x-api-key": client.api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            {
+                "model": client.model,
+                "max_tokens": CONNECTIVITY_MAX_TOKENS,
+                "messages": common_messages,
+            },
+            _parse_anthropic_response,
+        ),
+        _probe(
+            client,
+            "OpenAI Chat",
+            "/v1/chat/completions",
+            "Authorization: Bearer",
+            {
+                "Authorization": f"Bearer {client.api_key}",
+            },
+            {
+                "model": client.model,
+                "max_tokens": CONNECTIVITY_MAX_TOKENS,
+                "messages": common_messages,
+            },
+            _parse_openai_response,
+        ),
+    ]
+    success_count = sum(1 for probe in probes if probe.success)
+    if success_count == len(probes):
+        verdict = "OK"
+    elif success_count:
+        verdict = "WARNING"
+    else:
+        verdict = "FAILED"
+    result = {
+        "client": client,
+        "probes": probes,
+        "verdict": verdict,
+        "success": success_count > 0,
+        "successful_formats": [probe.format_name for probe in probes if probe.success],
+    }
+    result["markdown"] = render_connectivity_report(result)
+    return result
 
 
 # ============================================================
@@ -1968,6 +2372,224 @@ def run_tool_substitution_test(client, sleep: float = 1.0):
     detected = any(r["verdict"] == "substituted" for r in results)
     inconclusive = all(r["verdict"] == "error" for r in results)
     return results, detected, inconclusive
+
+
+# ============================================================
+# Error diagnosis helpers
+# ============================================================
+
+"""User-facing diagnosis helpers for relay/API errors.
+
+This module turns terse transport or HTTP errors into a stable, reportable
+explanation. It is intentionally informational: diagnoses help users fix
+connectivity/configuration problems but do not change any detector verdict or
+overall risk-matrix branch.
+"""
+
+import re
+
+
+_HTTP_STATUS_RE = re.compile(r"\bHTTP\s+(\d{3})\b", re.IGNORECASE)
+
+
+def _coerce_status(status):
+    if status is None:
+        return None
+    try:
+        value = int(status)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _status_from_error(error):
+    match = _HTTP_STATUS_RE.search(str(error or ""))
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _diagnosis(category, summary, likely_cause, suggested_action):
+    return {
+        "category": category,
+        "summary": summary,
+        "likely_cause": likely_cause,
+        "suggested_action": suggested_action,
+    }
+
+
+def diagnose_error(error=None, status=None):
+    """Return a structured diagnosis for an HTTP/transport error.
+
+    Args:
+        error: Error string from ``APIClient.call()``, ``raw_request()``, or a
+            stream transport failure.
+        status: Optional numeric HTTP status. When present, it takes priority
+            over status text parsed from ``error``.
+
+    Returns:
+        Dict with ``category``, ``summary``, ``likely_cause``, and
+        ``suggested_action``. The function never raises and never treats an
+        error as safe; it only explains the most likely operational cause.
+    """
+    text = str(error or "").strip()
+    text_lower = text.lower()
+    status_code = _coerce_status(status) or _status_from_error(text)
+
+    if status_code == 400:
+        return _diagnosis(
+            "bad-request",
+            "Request shape rejected by the relay.",
+            "The selected API format, model name, message schema, or content-type may not match this relay.",
+            "Verify the base URL, model id, and whether the relay expects Anthropic messages or OpenAI chat completions.",
+        )
+    if status_code == 401:
+        return _diagnosis(
+            "auth",
+            "Authentication failed.",
+            "The API key is invalid, expired, copied with extra whitespace, or not accepted by this relay.",
+            "Check the key in the provider dashboard and retry with a freshly copied key.",
+        )
+    if status_code == 403:
+        return _diagnosis(
+            "permission",
+            "The relay rejected an authenticated request.",
+            "The account may lack model access, have billing/credit problems, or be blocked from this API format.",
+            "Check account balance, model permissions, regional restrictions, and relay-side allowlists.",
+        )
+    if status_code == 404:
+        return _diagnosis(
+            "endpoint",
+            "Endpoint not found.",
+            "The base URL may be missing or duplicating a /v1 prefix, or the relay may not expose this route.",
+            "Try the relay's documented base URL and avoid appending /messages or /chat/completions manually.",
+        )
+    if status_code == 408:
+        return _diagnosis(
+            "timeout",
+            "The relay timed out the request.",
+            "The relay or upstream provider did not answer before the HTTP timeout.",
+            "Retry once, then increase --timeout or run with slower steps skipped to isolate the failing probe.",
+        )
+    if status_code == 413:
+        return _diagnosis(
+            "payload-too-large",
+            "Request body is too large for the relay.",
+            "The relay may enforce a smaller payload/context limit than the advertised model.",
+            "Retry with --fast-context or --skip-context, then run the full context test only if the relay supports it.",
+        )
+    if status_code == 422:
+        return _diagnosis(
+            "unprocessable",
+            "Request schema was understood but rejected.",
+            "Common causes are unsupported system prompts, unsupported model ids, or a relay-specific schema restriction.",
+            "Verify model access and whether this relay accepts custom system prompts for the selected format.",
+        )
+    if status_code == 429:
+        return _diagnosis(
+            "rate-limit",
+            "Rate limit or quota was hit.",
+            "The relay or upstream provider is throttling this key, account, or model.",
+            "Wait and retry with --skip-context or a lower --latency-probe-count, or upgrade the relay/provider quota.",
+        )
+    if status_code in (500, 502, 503, 504):
+        return _diagnosis(
+            "upstream-or-relay",
+            "Relay or upstream provider error.",
+            "The relay backend, gateway, or upstream model provider failed while handling the request.",
+            "Retry later; if it repeats, share the redacted report with the relay operator and inspect Step 9 for leakage.",
+        )
+    if status_code is not None and status_code >= 400:
+        return _diagnosis(
+            "http-error",
+            f"HTTP {status_code} error from the relay.",
+            "The relay returned a non-success status that is not mapped to a more specific diagnosis.",
+            "Check the raw response, relay documentation, selected model, and account state.",
+        )
+
+    if "both formats failed" in text_lower:
+        return _diagnosis(
+            "format-detection",
+            "Neither Anthropic nor OpenAI chat format produced a usable response.",
+            "The base URL may be wrong, the key may be invalid, or the relay may require a different API family.",
+            "Run a minimal vendor curl command from the relay docs, then retry with the documented base URL and model id.",
+        )
+    if "cors" in text_lower or "failed to fetch" in text_lower:
+        return _diagnosis(
+            "browser-cors",
+            "Browser access was blocked before a normal API response was available.",
+            "The relay likely does not allow browser-origin requests or hides responses from frontend JavaScript.",
+            "Run the generated curl command in a terminal; terminal requests are not subject to browser CORS.",
+        )
+    if "ssl" in text_lower or "certificate" in text_lower or "tls" in text_lower:
+        return _diagnosis(
+            "tls",
+            "TLS/SSL connection failed.",
+            "The relay certificate may be self-signed, expired, misconfigured, or blocked by the local trust store.",
+            "Retry once; the audit client may fall back to curl, but treat persistent TLS failures as operator-quality evidence.",
+        )
+    if "timed out" in text_lower or "timeout" in text_lower:
+        return _diagnosis(
+            "timeout",
+            "Request timed out before a response was received.",
+            "The relay, upstream model, or local network path is too slow for the current timeout.",
+            "Retry with --timeout increased, or skip long-running probes to determine whether only one step is slow.",
+        )
+    if (
+        "connecterror" in text_lower
+        or "connection refused" in text_lower
+        or "connection reset" in text_lower
+        or "name or service not known" in text_lower
+        or "nodename nor servname" in text_lower
+        or "could not resolve" in text_lower
+        or "temporary failure in name resolution" in text_lower
+    ):
+        return _diagnosis(
+            "network",
+            "Network connection to the relay failed.",
+            "DNS, firewall, proxy, VPN, or relay availability may be preventing any HTTP response.",
+            "Check the base URL in a browser or with curl -I, then retry from the same network path.",
+        )
+    if "expecting value" in text_lower or "jsondecodeerror" in text_lower:
+        return _diagnosis(
+            "non-json",
+            "Relay returned a non-JSON response where API JSON was expected.",
+            "The endpoint may be an HTML landing page, reverse-proxy error page, or non-API route.",
+            "Check the base URL and inspect the raw response with curl before running the full audit.",
+        )
+    if "empty curl output" in text_lower or "no header/body separator" in text_lower:
+        return _diagnosis(
+            "curl-output",
+            "curl did not receive a parseable HTTP response.",
+            "The relay closed the connection, returned malformed output, or an intermediary stripped the response.",
+            "Retry with curl -i against the same URL and inspect whether any HTTP status line is present.",
+        )
+    if "curl failed" in text_lower:
+        return _diagnosis(
+            "curl",
+            "curl transport failed.",
+            "The fallback transport could not complete the request, often due to network, TLS, DNS, or proxy issues.",
+            "Run curl --version and a minimal curl request to the relay, then retry the audit.",
+        )
+
+    return _diagnosis(
+        "unknown",
+        "Unmapped relay/API error.",
+        "The audit received an error string that does not match a known operational bucket.",
+        "Inspect the raw error, verify the key/base URL/model, and include the redacted report when asking the relay operator.",
+    )
+
+
+def format_diagnosis(diagnosis):
+    """Render a diagnosis dict as one compact Markdown line."""
+    return (
+        f"**Diagnosis**: {diagnosis['summary']} "
+        f"Likely cause: {diagnosis['likely_cause']} "
+        f"Next step: {diagnosis['suggested_action']}"
+    )
 
 
 # ============================================================
@@ -2443,7 +3065,10 @@ def _strip_markdown_code_fence(text: str) -> str:
 
 def _looks_like_refusal(text_lower: str) -> bool:
     """Return True if ``text_lower`` contains any refusal phrase."""
-    return any(m in text_lower for m in REFUSAL_MARKERS)
+    normalized = text_lower.translate(
+        str.maketrans({"\u2018": "'", "\u2019": "'", "\u02bc": "'"})
+    )
+    return any(marker in normalized for marker in REFUSAL_MARKERS)
 
 
 def _contains_claude_self_id(text_lower: str) -> bool:
@@ -4252,7 +4877,7 @@ def run_channel_classifier(client):
 # ============================================================
 
 """
-API Relay Security Audit Tool v2.3
+API Relay Security Audit Tool v2.4
 
 Full 14-step audit: infrastructure recon, model list, token injection,
 prompt extraction, instruction conflict + identity, jailbreak, context
@@ -4270,15 +4895,40 @@ Usage:
 """
 
 import argparse
+import os
 import re
-import shlex
+import shutil
+import socket
+import ssl
 import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib import error as urllib_error
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 
+
+TOOL_VERSION_FALLBACK = "2.4.0"
+
+
+def _api_relay_audit_checkout_root(script_path):
+    """Return this project's checkout root, or ``None`` for copied scripts."""
+    script_path = script_path.resolve()
+    candidates = []
+    if script_path.parent.name == "scripts":
+        candidates.append(script_path.parent.parent)
+    candidates.append(script_path.parent)
+
+    for root in candidates:
+        if all((
+            (root / "VERSION").is_file(),
+            (root / "scripts" / "build-standalone.py").is_file(),
+            (root / "api_relay_audit" / "reporter.py").is_file(),
+        )):
+            return root
+    return None
 
 
 def _format_identity_inconsistency(non_claude_matches):
@@ -4292,15 +4942,84 @@ def _format_identity_inconsistency(non_claude_matches):
     )
 
 
+def _diagnosis_for_error(error, status=None):
+    """Return the best available user-facing diagnosis for an error."""
+    return diagnose_error(error, status=status)
+
+
+def _report_error(report, error, status=None):
+    """Render a terse error plus an operational diagnosis.
+
+    The diagnosis is informational only: it helps the user fix auth, model,
+    endpoint, quota, or network problems but does not affect the risk matrix.
+    """
+    report.p(f"Error: {error}")
+    report.p(format_diagnosis(_diagnosis_for_error(error, status=status)))
+
+
+def _tool_version():
+    """Return the packaged tool version for report metadata."""
+    repo_root = _api_relay_audit_checkout_root(Path(__file__).resolve())
+    if repo_root is not None:
+        candidate = repo_root / "VERSION"
+        try:
+            value = candidate.read_text(encoding="utf-8").strip()
+        except OSError:
+            value = ""
+        if re.fullmatch(r"\d+\.\d+\.\d+", value):
+            return value
+    return TOOL_VERSION_FALLBACK
+
+
+def _tool_commit_from_checkout():
+    """Return a short git commit only when this script is in this repo checkout."""
+    repo_root = _api_relay_audit_checkout_root(Path(__file__).resolve())
+    if repo_root is None:
+        return ""
+    if not (repo_root / ".git").exists():
+        return ""
+    try:
+        root_result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        )
+        git_root = Path(root_result.stdout.strip()).resolve()
+        if git_root != repo_root.resolve():
+            return ""
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--short=12", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        )
+    except Exception:
+        return ""
+    commit = result.stdout.strip()
+    return commit if re.fullmatch(r"[0-9a-f]{7,12}", commit) else ""
+
+
 # ============================================================
 # CLI
 # ============================================================
 
 def parse_args():
-    p = argparse.ArgumentParser(description="API Relay Security Audit Tool")
-    p.add_argument("--key", required=True, help="API Key")
+    p = argparse.ArgumentParser(
+        description="API Relay Security Audit Tool",
+        allow_abbrev=False,
+    )
+    key_source = p.add_mutually_exclusive_group(required=True)
+    key_source.add_argument("--key", help="API Key")
+    key_source.add_argument("--key-env", metavar="NAME",
+                            help="Read the API Key from environment variable NAME")
     p.add_argument("--url", required=True, help="Base URL (e.g. https://xxx.com/v1)")
     p.add_argument("--model", default="claude-opus-4-6", help="Model name")
+    p.add_argument("--connectivity", action="store_true",
+                   help="Run a quick Anthropic/OpenAI Chat connectivity check "
+                        "and exit without running the full 14-step audit.")
     p.add_argument("--skip-infra", action="store_true", help="Skip infrastructure recon")
     p.add_argument("--skip-context", action="store_true", help="Skip context length test")
     p.add_argument("--fast-context", action="store_true",
@@ -4320,12 +5039,12 @@ def parse_args():
     p.add_argument("--profile", choices=["general", "web3", "full"],
                    default="general",
                    help="Audit profile selector. 'general' (default) runs "
-                        "Steps 1-10 — suitable for regular API relay users. "
+                        "all non-Web3 relay checks; Step 11 is profile-gated. "
                         "'web3' adds Web3-specific checks (Step 11 prompt "
                         "injection targeting private keys / transaction "
                         "signing / transfer guidance) for wallet users. "
-                        "'full' enables everything including future web3 "
-                        "steps. Profile gating allows the same tool to serve "
+                        "'full' runs all available checks. Profile gating "
+                        "allows the same tool to serve "
                         "both general and Web3 audiences without branch splits.")
     p.add_argument("--skip-web3-injection", action="store_true",
                    help="Skip Step 11 Web3 prompt injection probes (only "
@@ -4357,7 +5076,15 @@ def parse_args():
                    help="Path to an append-only JSONL forensic log (arXiv §7.3). "
                         "Every API request is recorded with timestamp, URL, "
                         "SHA-256 of request/response, and status code.")
-    return p.parse_args()
+    args = p.parse_args()
+    if args.key_env is not None:
+        value = os.environ.get(args.key_env)
+        if not value:
+            p.error(
+                f"environment variable {args.key_env!r} is missing or empty"
+            )
+        args.key = value
+    return args
 
 
 def run_warmup(client, n):
@@ -4383,6 +5110,178 @@ def run_cmd(cmd, timeout=10):
         return f"error: {e}"
 
 
+def _looks_like_claude_code_client_gate(error) -> bool:
+    """Return True when an error string looks like a Claude Code-only gate.
+
+    Some relays expose ``/v1/models`` to generic API tokens but reject
+    ``/v1/messages`` unless the caller is the real Claude Code client.
+    We deliberately do NOT impersonate Claude Code headers (out of scope
+    per ROADMAP / CLAUDE.md); instead we downgrade the affected steps to
+    an honest inconclusive verdict.
+    """
+    if not error:
+        return False
+    text = str(error).lower()
+    return (
+        "claude code" in text
+        and "client" in text
+        and ("only allow" in text or "only allows" in text)
+    )
+
+
+def _compact_multiline(text, max_lines=6):
+    """Collapse a verbose multi-line tool output into a compact inline string."""
+    if not text:
+        return None
+    lines = [line.strip() for line in str(text).splitlines() if line.strip()]
+    if not lines:
+        return None
+    return " | ".join(lines[:max_lines])
+
+
+def _run_optional_command(argv, timeout=10, max_lines=None):
+    """Run an optional local binary and return combined stdout/stderr text.
+
+    Missing executables are treated as an unavailable signal rather than
+    as a hard error in the report.
+    """
+    if not argv or shutil.which(argv[0]) is None:
+        return None
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except Exception:
+        return None
+    parts = []
+    if r.stdout:
+        parts.append(r.stdout.strip())
+    if r.stderr:
+        parts.append(r.stderr.strip())
+    text = "\n".join(part for part in parts if part).strip()
+    if not text:
+        return None
+    if max_lines is not None:
+        text = "\n".join(text.splitlines()[:max_lines])
+    return text
+
+
+def _resolve_dns_records(domain):
+    """Resolve A records via stdlib and optional CNAME/NS via nslookup."""
+    records = {}
+
+    try:
+        infos = socket.getaddrinfo(domain, None, family=socket.AF_INET, type=socket.SOCK_STREAM)
+        ipv4s = sorted({info[4][0] for info in infos})
+        records["A"] = ", ".join(ipv4s) if ipv4s else "(empty)"
+    except Exception as e:
+        records["A"] = f"error: {e}"
+
+    for rtype in ("CNAME", "NS"):
+        raw = _run_optional_command(["nslookup", f"-type={rtype}", domain], timeout=10, max_lines=20)
+        records[rtype] = _compact_multiline(raw) or "nslookup not available on this host"
+
+    return records
+
+
+def _format_x509_name(name):
+    parts = []
+    for group in name or []:
+        for key, value in group:
+            parts.append(f"{key}={value}")
+    return ", ".join(parts)
+
+
+def _fetch_tls_certificate_summary(domain):
+    """Fetch peer cert metadata without requiring openssl on the host."""
+    context = ssl._create_unverified_context()
+    try:
+        with socket.create_connection((domain, 443), timeout=10) as sock:
+            with context.wrap_socket(sock, server_hostname=domain) as tls_sock:
+                cert = tls_sock.getpeercert()
+    except Exception:
+        return None
+
+    if not cert:
+        return None
+
+    lines = []
+    subject = _format_x509_name(cert.get("subject"))
+    issuer = _format_x509_name(cert.get("issuer"))
+    if subject:
+        lines.append(f"subject={subject}")
+    if issuer:
+        lines.append(f"issuer={issuer}")
+    if cert.get("notBefore"):
+        lines.append(f"notBefore={cert['notBefore']}")
+    if cert.get("notAfter"):
+        lines.append(f"notAfter={cert['notAfter']}")
+    sans = [value for kind, value in cert.get("subjectAltName", []) if kind == "DNS"]
+    if sans:
+        lines.append("subjectAltName=" + ", ".join(sans[:20]))
+    return "\n".join(lines) if lines else None
+
+
+def _response_to_snapshot(resp, read_body=False, max_body_chars=500):
+    body_preview = ""
+    if read_body:
+        try:
+            body_preview = resp.read(max_body_chars).decode("utf-8", errors="replace")
+        except Exception:
+            body_preview = ""
+    return {
+        "status": getattr(resp, "status", None) or getattr(resp, "code", None),
+        "url": resp.geturl() if hasattr(resp, "geturl") else None,
+        "headers": dict(resp.headers.items()) if getattr(resp, "headers", None) else {},
+        "body_preview": body_preview,
+    }
+
+
+def _fetch_http_snapshot(url, method="GET", max_body_chars=500):
+    """Fetch headers/body preview via stdlib urllib instead of curl/head."""
+    request = Request(
+        url,
+        headers={"User-Agent": "api-relay-audit/step1"},
+        method=method,
+    )
+    context = ssl._create_unverified_context() if url.lower().startswith("https://") else None
+    try:
+        with urlopen(request, timeout=10, context=context) as resp:
+            return _response_to_snapshot(
+                resp,
+                read_body=(method != "HEAD"),
+                max_body_chars=max_body_chars,
+            )
+    except urllib_error.HTTPError as e:
+        return _response_to_snapshot(
+            e,
+            read_body=(method != "HEAD"),
+            max_body_chars=max_body_chars,
+        )
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _format_http_headers(snapshot, limit=20):
+    if not snapshot or snapshot.get("error"):
+        return None
+    lines = []
+    status = snapshot.get("status")
+    final_url = snapshot.get("url")
+    if status or final_url:
+        label = f"HTTP {status}" if status else "HTTP"
+        if final_url:
+            label += f" {final_url}"
+        lines.append(label)
+    for idx, (key, value) in enumerate(snapshot.get("headers", {}).items()):
+        if idx >= limit:
+            break
+        lines.append(f"{key}: {value}")
+    return "\n".join(lines) if lines else None
+
+
+def _lookup_whois(domain):
+    return _run_optional_command(["whois", domain], timeout=10, max_lines=30)
+
+
 # ============================================================
 # Test modules
 # ============================================================
@@ -4390,39 +5289,37 @@ def run_cmd(cmd, timeout=10):
 def test_infrastructure(base_url, report):
     report.h2("1. Infrastructure Recon")
     domain = urlparse(base_url).hostname
-    q_domain = shlex.quote(domain)
-    q_url = shlex.quote(base_url)
 
     # DNS
     report.h3("1.1 DNS Records")
+    dns_records = _resolve_dns_records(domain)
     for rtype in ["A", "CNAME", "NS"]:
-        result = run_cmd(f"dig +short {q_domain} {rtype} 2>/dev/null || nslookup -type={rtype} {q_domain} 2>/dev/null")
-        report.p(f"**{rtype}**: `{result or '(empty)'}`")
+        report.p(f"**{rtype}**: `{dns_records.get(rtype, '(empty)')}`")
 
     # WHOIS
     report.h3("1.2 WHOIS")
     parts = domain.split(".")
     main_domain = ".".join(parts[-2:]) if len(parts) >= 2 else domain
-    q_main_domain = shlex.quote(main_domain)
-    whois = run_cmd(f"whois {q_main_domain} 2>/dev/null | head -30")
-    report.code(whois) if whois else report.p("whois not available")
+    whois = _lookup_whois(main_domain)
+    report.code(whois) if whois else report.p("whois not available on this host")
 
     # SSL
     report.h3("1.3 SSL Certificate")
-    ssl_info = run_cmd(
-        f"echo | openssl s_client -connect {q_domain}:443 -servername {q_domain} 2>/dev/null "
-        f"| openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null"
-    )
+    ssl_info = _fetch_tls_certificate_summary(domain)
     report.code(ssl_info) if ssl_info else report.p("Unable to retrieve SSL certificate")
 
     # HTTP headers
     report.h3("1.4 HTTP Response Headers")
-    headers = run_cmd(f"curl -sI {q_url} 2>/dev/null | head -20")
+    headers_snapshot = _fetch_http_snapshot(base_url, method="HEAD")
+    if headers_snapshot.get("error"):
+        headers_snapshot = _fetch_http_snapshot(base_url, method="GET")
+    headers = _format_http_headers(headers_snapshot)
     report.code(headers) if headers else report.p("Unable to retrieve response headers")
 
     # System identification
     report.h3("1.5 System Identification")
-    homepage = run_cmd(f"curl -s {q_url} 2>/dev/null | head -5")
+    homepage_snapshot = _fetch_http_snapshot(base_url, method="GET")
+    homepage = homepage_snapshot.get("body_preview") if homepage_snapshot else None
     if homepage:
         report.code(homepage[:500])
 
@@ -4455,17 +5352,46 @@ def test_token_injection(client, report):
     report.p("|------|---------------------|----------|-------|")
 
     injection_size = 0
+    errors = []
+    success_count = 0
+    error_diagnostics = []
     for name, sys_prompt, user_msg, expected in tests:
         r = client.call([{"role": "user", "content": user_msg}],
                         system=sys_prompt, max_tokens=100)
         if "error" in r:
             report.p(f"| {name} | ERROR | ~{expected} | - |")
+            errors.append(r.get("error", ""))
+            error_diagnostics.append((name, r["error"]))
         else:
+            success_count += 1
             actual = r["input_tokens"]
             diff = actual - expected
             injection_size = max(injection_size, diff)
             report.p(f"| {name} | **{actual}** | ~{expected} | **~{diff}** |")
         time.sleep(1)
+
+    if error_diagnostics:
+        report.p("\n**Error diagnostics:**")
+        for name, error in error_diagnostics:
+            report.p(f"- {name}: {format_diagnosis(_diagnosis_for_error(error))}")
+
+    if success_count == 0:
+        if errors and all(_looks_like_claude_code_client_gate(err) for err in errors):
+            report.flag(
+                "yellow",
+                "Token injection test INCONCLUSIVE: every completion probe "
+                "was rejected as Claude Code-client-only. The relay appears "
+                "restricted to Claude Code clients, so hidden prompt injection "
+                "could not be measured.",
+            )
+        else:
+            report.flag(
+                "yellow",
+                f"Token injection test INCONCLUSIVE: all {len(errors)} probes "
+                "errored, so hidden prompt injection could not be measured.",
+            )
+        print("  Done: token injection (inconclusive, all probes errored)")
+        return None
 
     if injection_size > 100:
         report.flag("red", f"Hidden system prompt injection detected (~{injection_size} tokens/request)")
@@ -4497,7 +5423,7 @@ def test_prompt_extraction(client, report):
         report.h3(f"Test {name}")
         r = client.call([{"role": "user", "content": prompt}], max_tokens=1024)
         if "error" in r:
-            report.p(f"Error: {r['error']}")
+            _report_error(report, r["error"])
             inconclusive = True
             inconclusive_names.append(name)
         else:
@@ -4528,7 +5454,6 @@ def test_prompt_extraction(client, report):
             weak_hits = [kw for kw in weak_markers if kw in text_lower]
 
             if has_strong:
-                leaked = True
                 if _is_self_corrected_hidden_prompt_echo(name, text_lower, structural, strong_hits):
                     report.flag(
                         "yellow",
@@ -4537,18 +5462,11 @@ def test_prompt_extraction(client, report):
                         "self-correction, verify manually",
                     )
                 else:
+                    leaked = True
                     report.flag("red", f"Test {name}: Hidden prompt content extracted!")
             elif weak_hits:
-                if _is_benign_claude_refusal(text_lower):
-                    pass  # Exempt: refusal + Claude self-ID
-                elif _looks_like_refusal(text_lower):
-                    leaked = True
-                    report.flag(
-                        "yellow",
-                        f"Test {name}: identity words ({', '.join(weak_hits)}) "
-                        f"present alongside refusal without Claude self-identification "
-                        f"— possible partial leak, verify manually",
-                    )
+                if _looks_like_refusal(text_lower):
+                    pass
                 else:
                     leaked = True
                     report.flag("red", f"Test {name}: Hidden prompt content extracted!")
@@ -4574,6 +5492,8 @@ def test_prompt_extraction(client, report):
 
 def test_instruction_conflict(client, report):
     report.h2("5. Instruction Override Tests")
+    error_messages = []
+    success_count = 0
 
     # Cat test
     report.h3("Test D: Cat Test")
@@ -4588,12 +5508,15 @@ def test_instruction_conflict(client, report):
 
     overridden = False
     if "error" in r:
-        report.p(f"Error: {r['error']}")
+        _report_error(report, r["error"])
         # 422 typically means relay rejects custom system prompts — user has no control
         if "422" in str(r.get("error", "")):
             overridden = True
             report.flag("red", "Cat test blocked: relay rejects custom system prompts (HTTP 422)")
+        else:
+            error_messages.append(r.get("error", ""))
     else:
+        success_count += 1
         report.p(f"**input_tokens**: {r['input_tokens']} | **Response**: `{r['text']}`")
         text = r["text"].strip().lower()
         has_meow = "meow" in text
@@ -4622,11 +5545,14 @@ def test_instruction_conflict(client, report):
     )
 
     if "error" in r:
-        report.p(f"Error: {r['error']}")
+        _report_error(report, r["error"])
         if "422" in str(r.get("error", "")):
             overridden = True
             report.flag("red", "Identity test blocked: relay rejects custom system prompts (HTTP 422)")
+        else:
+            error_messages.append(r.get("error", ""))
     else:
+        success_count += 1
         report.p(f"**input_tokens**: {r['input_tokens']} | **Response**:")
         report.code(r["text"][:500])
         text_lower = r["text"].lower()
@@ -4650,6 +5576,24 @@ def test_instruction_conflict(client, report):
         else:
             report.flag("yellow", "Identity test inconclusive")
 
+    if success_count == 0 and not overridden:
+        if error_messages and all(_looks_like_claude_code_client_gate(err) for err in error_messages):
+            report.flag(
+                "yellow",
+                "Instruction override test INCONCLUSIVE: both completion "
+                "probes were rejected as Claude Code-client-only. The relay "
+                "appears restricted to Claude Code clients, so user system-"
+                "prompt adherence could not be verified.",
+            )
+        else:
+            report.flag(
+                "yellow",
+                "Instruction override test INCONCLUSIVE: both probes errored, "
+                "so user system-prompt adherence could not be verified.",
+            )
+        print("  Done: instruction conflict (inconclusive, all probes errored)")
+        return None
+
     print(f"  Done: instruction conflict (overridden: {'yes' if overridden else 'no'})")
     return overridden
 
@@ -4672,12 +5616,16 @@ def test_jailbreak(client, report):
     ]
 
     leaked_keywords = []
+    error_messages = []
+    success_count = 0
     for name, prompt in tests:
         report.h3(f"Test {name}")
         r = client.call([{"role": "user", "content": prompt}], max_tokens=1024)
         if "error" in r:
-            report.p(f"Error: {r['error']}")
+            _report_error(report, r["error"])
+            error_messages.append(r.get("error", ""))
         else:
+            success_count += 1
             report.p(f"**input_tokens**: {r['input_tokens']} | **output_tokens**: {r['output_tokens']}")
             report.p("**Response**:")
             report.code(r["text"][:2000])
@@ -4726,6 +5674,22 @@ def test_jailbreak(client, report):
 
     if leaked_keywords:
         report.p(f"\nInferred hidden prompt characteristics: {', '.join(set(leaked_keywords))}")
+    elif success_count == 0:
+        report.p("\nJailbreak probes did not return any usable completion.")
+        if error_messages and all(_looks_like_claude_code_client_gate(err) for err in error_messages):
+            report.flag(
+                "yellow",
+                "Jailbreak tests INCONCLUSIVE: every completion probe was "
+                "rejected as Claude Code-client-only. The relay appears "
+                "restricted to Claude Code clients, so jailbreak behavior "
+                "could not be verified.",
+            )
+        else:
+            report.flag(
+                "yellow",
+                f"Jailbreak tests INCONCLUSIVE: all {len(error_messages)} "
+                "probes errored, so jailbreak behavior could not be verified.",
+            )
     else:
         report.p("\nJailbreak tests did not extract useful information.")
         report.flag("green", "Jailbreak tests passed (no identity keywords leaked)")
@@ -4753,10 +5717,12 @@ def test_tool_substitution(client, report):
     report.p("| Manager | Expected | Received | Verdict |")
     report.p("|---------|----------|----------|---------|")
     error_count = 0
+    error_diagnostics = []
     for r in results:
         expected = r["expected"]
         if r["verdict"] == "error":
             error_count += 1
+            error_diagnostics.append((r["manager"], r.get("error") or ""))
             err_short = (r.get("error") or "")[:60].replace("|", "\\|").replace("\n", " ")
             received_cell = f"ERROR: {err_short}"
             icon = "\u26aa skipped"
@@ -4770,6 +5736,11 @@ def test_tool_substitution(client, report):
             else:
                 icon = "\U0001f534 SUBSTITUTED"
         report.p(f"| {r['manager']} | `{expected}` | {received_cell} | {icon} |")
+
+    if error_diagnostics:
+        report.p("\n**Error diagnostics:**")
+        for manager, error in error_diagnostics:
+            report.p(f"- {manager}: {format_diagnosis(_diagnosis_for_error(error))}")
 
     if detected:
         subs = sum(1 for r in results if r["verdict"] == "substituted")
@@ -4831,10 +5802,12 @@ def test_error_leakage(client, args, report):
 
     report.p("| Trigger | HTTP Status | Severity | Leaks |")
     report.p("|---------|-------------|----------|-------|")
+    transport_error_diagnostics = []
     for r in results:
         name = r["trigger"]
         status_cell = str(r["status"]) if r["status"] else "—"
         if r["error"]:
+            transport_error_diagnostics.append((name, r["error"]))
             status_cell = f"ERR: {r['error'][:40]}"
         sev = r["severity"]
         if sev == "critical":
@@ -4848,6 +5821,11 @@ def test_error_leakage(client, args, report):
         leak_kinds = sorted({h["kind"] for h in r["hits"]})
         leaks_cell = ", ".join(leak_kinds) if leak_kinds else "—"
         report.p(f"| {name} | {status_cell} | {sev_cell} | {leaks_cell} |")
+
+    if transport_error_diagnostics:
+        report.p("\n**Transport error diagnostics:**")
+        for name, error in transport_error_diagnostics:
+            report.p(f"- {name}: {format_diagnosis(_diagnosis_for_error(error))}")
 
     # Per-trigger detail subsections for any probe with at least one hit.
     any_hits = [r for r in results if r["hits"]]
@@ -4918,13 +5896,15 @@ def test_stream_integrity(client, report):
         "Open an Anthropic streaming request with thinking enabled and "
         "inspect every SSE event for structural anomalies. A relay that "
         "rewrites or downgrades the streamed response often fails one "
-        "of four invariants: (1) all event types belong to Anthropic's "
+        "of five invariants: (1) all event types belong to Anthropic's "
         "known set (ping / message_start / content_block_start / "
         "content_block_delta / content_block_stop / message_delta / "
         "message_stop); (2) ``input_tokens`` is consistent across "
         "``message_start`` and ``message_delta``; (3) ``output_tokens`` "
         "is monotonically non-decreasing; (4) ``signature_delta`` events "
-        "carry non-empty signature values. Detection concept sourced from "
+        "carry non-empty signature values; (5) exactly one terminal "
+        "``message_stop`` follows ``message_start`` with no later non-ping "
+        "events. Detection concept sourced from "
         "hvoy.ai's claude_detector.py, verified against source on "
         "2026-04-11. See reference_hvoy_relayapi memory for details.\n"
     )
@@ -4949,6 +5929,7 @@ def test_stream_integrity(client, report):
     report.p(f"| Usage monotonic | {'yes' if analysis['usage_monotonic'] else 'NO'} |")
     report.p(f"| Usage consistent | {'yes' if analysis['usage_consistent'] else 'NO'} |")
     report.p(f"| Signature valid | {'yes' if analysis['signature_valid'] else 'NO'} |")
+    report.p(f"| Stream complete | {'yes' if analysis['stream_complete'] else 'NO'} |")
     report.p(
         f"| Stream model | {analysis['stream_model_name'] or '—'} "
         f"({'claude' if analysis['stream_model_is_claude'] else 'NOT claude'}) |"
@@ -4961,6 +5942,9 @@ def test_stream_integrity(client, report):
         report.p("\n**Findings**:")
         for finding in analysis["findings"]:
             report.p(f"- {finding}")
+    if signals.transport_error:
+        report.p("\n**Transport error diagnosis:**")
+        report.p(format_diagnosis(_diagnosis_for_error(signals.transport_error)))
 
     if verdict == "anomaly":
         report.flag(
@@ -4980,7 +5964,8 @@ def test_stream_integrity(client, report):
         report.flag(
             "green",
             "Stream integrity clean: SSE whitelist + usage monotonicity "
-            "+ signature validity + stream model identity all passed",
+            "+ signature validity + terminal completeness + stream model "
+            "identity all passed",
         )
 
     print(f"  Done: stream integrity ({verdict})")
@@ -5016,8 +6001,10 @@ def test_web3_injection(client, report):
 
     report.p("| Probe | Verdict | Safe markers | Unsafe markers |")
     report.p("|-------|---------|--------------|----------------|")
+    error_diagnostics = []
     for r in results:
         if r.error:
+            error_diagnostics.append((r.name, r.error))
             report.p(f"| {r.name} | ERR: {r.error[:40]} | — | — |")
             continue
         if r.verdict == "safe":
@@ -5029,6 +6016,11 @@ def test_web3_injection(client, report):
         safe_summary = ", ".join(r.safe_markers_found[:3]) if r.safe_markers_found else "—"
         unsafe_summary = ", ".join(r.unsafe_markers_found[:3]) if r.unsafe_markers_found else "—"
         report.p(f"| {r.name} | {v} | {safe_summary} | {unsafe_summary} |")
+
+    if error_diagnostics:
+        report.p("\n**Error diagnostics:**")
+        for name, error in error_diagnostics:
+            report.p(f"- {name}: {format_diagnosis(_diagnosis_for_error(error))}")
 
     # Per-probe details for any injected or inconclusive-with-response
     for r in results:
@@ -5150,11 +6142,13 @@ def test_infra_fingerprint(client, report):
 
     report.p("| Probe | Path | Status | Framework | Signals |")
     report.p("|-------|------|--------|-----------|---------|")
+    error_diagnostics = []
     for r in results:
         name = r["probe"]
         path = r["path"]
         status_cell = str(r["status"]) if r["status"] else "—"
         if r["error"]:
+            error_diagnostics.append((name, r["error"]))
             status_cell = f"ERR: {r['error'][:40]}"
         framework = r["framework"] or "—"
         if r["signals"]:
@@ -5163,6 +6157,11 @@ def test_infra_fingerprint(client, report):
         else:
             signals_cell = "—"
         report.p(f"| {name} | `{path}` | {status_cell} | `{framework}` | {signals_cell} |")
+
+    if error_diagnostics:
+        report.p("\n**Transport error diagnostics:**")
+        for name, error in error_diagnostics:
+            report.p(f"- {name}: {format_diagnosis(_diagnosis_for_error(error))}")
 
     # Informative headers across all probes, de-duplicated per (name, value)
     merged_headers = {}
@@ -5240,6 +6239,13 @@ def test_latency_variance(client, report, probe_count=10):
     stats = result["stats"]
 
     if not latencies:
+        if errors:
+            report.p("\n**Error diagnostics:**")
+            for idx, error in enumerate(errors, start=1):
+                report.p(
+                    f"- probe {idx}: "
+                    f"{format_diagnosis(_diagnosis_for_error(error))}"
+                )
         report.flag(
             "yellow",
             f"Latency variance test inconclusive: all {len(errors)} "
@@ -5261,6 +6267,11 @@ def test_latency_variance(client, report, probe_count=10):
     report.p(f"| coefficient of variation | {stats['cv']:.3f} |")
     report.p(f"| largest-gap / median | {result['gap_ratio']:.3f} |")
     report.p(f"| verdict | `{result['verdict']}` |")
+
+    if errors:
+        report.p("\n**Error diagnostics:**")
+        for idx, error in enumerate(errors, start=1):
+            report.p(f"- failed probe {idx}: {format_diagnosis(_diagnosis_for_error(error))}")
 
     verdict = result["verdict"]
     if verdict == "bimodal":
@@ -5369,6 +6380,13 @@ def test_channel_classifier(client, report):
         report.p(f"| evidence | {ev_str} |")
     else:
         report.p("| evidence | — |")
+
+    if error:
+        report.p("\n**Transport error diagnosis:**")
+        report.p(format_diagnosis(_diagnosis_for_error(error)))
+    elif verdict == "inconclusive" and raw_status:
+        report.p("\n**HTTP status diagnosis:**")
+        report.p(format_diagnosis(_diagnosis_for_error(None, status=raw_status)))
 
     if verdict == "inconclusive":
         if error:
@@ -5480,13 +6498,35 @@ def _run_step(name, reporter, step_fn, *args, default=None, crashes=None):
 def main():
     args = parse_args()
     client = APIClient(args.url, args.key, args.model, timeout=args.timeout)
-    report = Reporter()
 
     # v1.7.7: transparent forensic log (arXiv §7.3)
     _transparent_logger = None
     if args.transparent_log:
         _transparent_logger = TransparentLogger(args.transparent_log)
         client.set_transparent_logger(_transparent_logger)
+
+    if args.connectivity:
+        print(f"\n{'=' * 60}")
+        print("  API Relay Connectivity Check")
+        print(f"  Target: {client.base_url}")
+        print(f"  Model:  {args.model}")
+        print(f"{'=' * 60}\n")
+
+        result = run_connectivity_check(client)
+        md = result["markdown"]
+        if args.output:
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.output).write_text(md, encoding="utf-8")
+            print(f"  Connectivity report saved: {args.output}")
+        else:
+            print(md)
+
+        if _transparent_logger is not None:
+            _transparent_logger.close()
+            print(f"\n  Transparent log: {args.transparent_log}")
+        return 0 if result["success"] else 1
+
+    report = Reporter()
 
     print(f"\n{'=' * 60}")
     print(f"  API Relay Security Audit")
@@ -5794,7 +6834,13 @@ def main():
                  "anomaly, or Web3 injection detected.")
 
     # Output
-    md = report.render(target_url=client.base_url, model=args.model)
+    md = report.render(
+        target_url=client.base_url,
+        model=args.model,
+        tool_version=f"v{_tool_version()}",
+        profile=args.profile,
+        tool_commit=_tool_commit_from_checkout(),
+    )
 
     if args.output:
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
@@ -5812,7 +6858,8 @@ def main():
     print(f"\n{'=' * 60}")
     print("  Audit complete")
     print(f"{'=' * 60}\n")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

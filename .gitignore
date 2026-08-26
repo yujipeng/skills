@@ -1,3 +1,4 @@
 # mac 无用文件
 .DS_Store
 .playwright-mcp/
+.reasonix/
