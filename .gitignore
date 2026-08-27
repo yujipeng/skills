@@ -2,3 +2,10 @@
 .DS_Store
 .playwright-mcp/
 .reasonix/
+
+# Python 缓存
+__pycache__/
+
+# 本地 skill：short-link 与 tests 不入库
+short-link/
+tests/
