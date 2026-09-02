@@ -1,0 +1,38 @@
+# multica-daemon.service — systemd 常驻 multica 守护进程（开机自启）
+#
+# 安装（普通用户 + sudo 仅用于放置 unit 文件本身，daemon 以普通用户运行）：
+#   sudo tee /etc/systemd/system/multica-daemon.service > /dev/null < 本文件
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now multica-daemon
+#   sudo systemctl status multica-daemon
+#
+# 注意：
+#   - User= 换成实际运行用户；下面全部路径换成该用户的实际路径
+#   - systemd 默认 PATH 不含 nvm / ~/.npm-global，必须写全（两种 Node 安装写法二选一）
+#   - Environment 里的 DEEPSEEK_API_KEY 是明文，unit 文件权限收紧：sudo chmod 600 本文件
+#   - dsh 版本更新后 daemon 会自动拉起新二进制；无需重启本 service（由 weekly-update 脚本 restart）
+
+[Unit]
+Description=Multica Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tcxy
+# ---- 写法一：npm-global 安装的 Node（apt/二进制版，见 docs/install-linux.md 第 2 步）----
+# Environment="PATH=/home/tcxy/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
+# Environment="DEEPSEEK_API_KEY=sk-你的key"
+# Environment="MULTICA_DSH_PATH=/home/tcxy/.npm-global/bin/dsh"
+# ExecStart=/home/tcxy/.local/bin/multica daemon start --foreground
+# ---- 写法二：nvm 安装的 Node ----
+Environment="PATH=/home/tcxy/.nvm/versions/node/v22.23.0/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="DEEPSEEK_API_KEY=sk-你的key"
+Environment="MULTICA_DSH_PATH=/home/tcxy/.nvm/versions/node/v22.23.0/bin/dsh"
+Environment="MULTICA_DSH_MODEL=deepseek-official/deepseek-chat"
+ExecStart=/home/tcxy/.local/bin/multica daemon start --foreground
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

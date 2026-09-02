@@ -169,3 +169,16 @@ scripts/
 - **依赖**：Python 3
 
 > 与 `prototype-html` 配套使用：`prototype-html` 负责生成原型，`tc-protohub` 负责发布到 ProtoHub。
+
+---
+
+### `multica-server-setup/`
+
+Multica 服务器端 agent 安装与定时更新 Skill（Linux 服务器为主，macOS 开发机可选）。引导安装 reasonix / codex / Claude Code（缺失时）、dsh 三 profile（web / tui / multica）、`@multica-ai/dsh-runtime` 桥插件、DeepSeek API Key 与 Multica Web 智能体创建，并配置每周自动更新（crontab / systemd / launchd）。
+
+- **版本**：v1.0.0（内部 skill，源自本仓库 `tests/` 实测脚本与教程）
+- **硬性规则**：所有安装限当前用户目录，全程禁止 sudo / root；dsh 固定 `0.1.0-rc.6`；multica profile 只允许 base + runtime 两个 bundle
+- **环境变量**：`DEEPSEEK_API_KEY`（必填）、`MULTICA_DSH_PATH`、`MULTICA_DSH_MODEL`（推荐）
+- **脚本**：`scripts/setup-agent.sh`（一键安装）、`agent-weekly-update.sh`（服务器精简更新）、`agent-weekly-update-full.sh`（开发机完整更新）
+- **文档**：`docs/install-linux.md`（含阿里云 ECS 特化）、`docs/runtime-and-web.md`（验证 / Web 智能体 / 故障排查）
+- **模板**：`templates/`（crontab / systemd / launchd）

@@ -17,6 +17,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - `guizang-ppt-skill/` — 归藏 PPT skill：生成电子杂志或瑞士风单文件 HTML 演示、配图和多平台封面
 - `humanizer/` — 去除 AI 写作痕迹 skill：`SKILL.md` + `README.md` + Claude 插件元数据（纯提示工程，无运行时依赖）
 - `humanizer-zh/` — 中文去 AI 写作痕迹 skill：针对中文表达检测并重写模板化、宣传化和机械排比等模式
+- `multica-server-setup/` — Multica 服务器端 agent 安装与定时更新 skill：`SKILL.md` + 3 个 Bash 脚本 + 2 份文档 + 3 个模板（一键安装、服务器精简/开发机完整每周更新、crontab/systemd/launchd）
 - `newapi-billing/` — NewAPI 计费表达式设计 skill：`SKILL.md`（纯提示工程，无运行时依赖，支持固定价格/阶梯定价/多模态/动态调价）
 - `prototype-html/` — 交互式 HTML 产品原型生成 skill：`SKILL.md` + `assets/example.html`
 - `self-improving/` — Agent 自我反思与持久学习 skill：`SKILL.md` + 多个规则/状态文件（运行时状态文件通过 `.gitignore` 屏蔽）
@@ -80,6 +81,7 @@ node web-access/scripts/check-deps.mjs
 - `guizang-ppt-skill` 来源：[op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) `main`（AGPL-3.0）
 - `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.11.1（MIT）
 - `humanizer-zh` 来源：[op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) `main`（MIT）
+- `multica-server-setup` 内部 skill，v1.0.0（源自本仓库 `tests/` 实测脚本与教程；基于 `@deepseek-ai/dsh@0.1.0-rc.6` + `@multica-ai/dsh-runtime` + `@huiliyi37/dsh-tianshu-tui` 验证组合）
 - `prototype-html` 来源：[vagerent/prototype-html](https://github.com/vagerent/prototype-html) v1.0.0（Apache-2.0）
 - `self-improving` 来源：[clawic.com/skills/self-improving](https://clawic.com/skills/self-improving) v1.2.16
 - `tc-exam-solver` 内部 skill，v1.0.0（针对 ai-exam.tcredit.com）

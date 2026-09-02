@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  dsh-web-launchd.plist — macOS 开发机 dsh web 常驻（可选）
+  来源：tests/dsh-web-launchd.plist
+
+  安装（可选，需管理员权限放置到 /Library/LaunchDaemons）：
+    sudo cp dsh-web-launchd.plist /Library/LaunchDaemons/com.deepseek.dsh-web.plist
+    sudo launchctl load /Library/LaunchDaemons/com.deepseek.dsh-web.plist
+
+  或仅当前用户（LaunchAgents，无需 sudo）：
+    mkdir -p ~/Library/LaunchAgents
+    cp dsh-web-launchd.plist ~/Library/LaunchAgents/com.deepseek.dsh-web.plist
+    launchctl load ~/Library/LaunchAgents/com.deepseek.dsh-web.plist
+
+  注意：
+    - /opt/homebrew/bin 为 Apple Silicon Homebrew 路径；Intel 机器为 /usr/local/bin
+    - 本文件用于「开发机 dsh web」场景；服务器场景请用 templates/multica-daemon.service
+    - 若 plist 中含敏感环境变量，文件权限收紧为仅属主可读
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.deepseek.dsh-web</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/dsh</string>
+        <string>web</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>DSH_HOME</key>
+        <string>/Users/yujipeng/.dsh</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yujipeng/.dsh/logs/web-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yujipeng/.dsh/logs/web-stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yujipeng/.dsh</string>
+
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <key>SessionCreate</key>
+    <true/>
+
+    <key>AbandonProcessGroup</key>
+    <true/>
+</dict>
+</plist>

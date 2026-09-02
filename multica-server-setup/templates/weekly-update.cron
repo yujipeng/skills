@@ -1,0 +1,24 @@
+# weekly-update.cron — crontab 每周日自动更新 multica 服务器端 agent
+#
+# 安装方式（普通用户，无需 root）：
+#   crontab -e    # 粘贴下面一行（去掉 # 注释前缀）
+#
+# 服务器精简版：只更新 dsh + multica（推荐用于服务器）
+# 开发机完整版：reasonix / codex / claude / dsh / multica 全更新
+#
+# 每周日 03:00 执行；日志由脚本写入 ~/.local/state/weekly-update.log
+#
+# 注意：
+#   - 路径按实际部署位置调整（脚本放在用户可读目录即可）
+#   - crontab 环境 PATH 极简，脚本内部已自行前置 nvm bin / ~/.npm-global/bin
+#   - 容器内 /var/spool/cron 无写权限时，需在宿主机或具备权限的环境安装
+
+# 服务器精简版（每周日 03:00）
+0 3 * * 0 bash /home/<你的用户>/skills/multica-server-setup/scripts/agent-weekly-update.sh
+
+# 开发机完整版（每周日 03:00）—— 与上面二选一
+# 0 3 * * 0 bash /Users/<你的用户>/Documents/skills/multica-server-setup/scripts/agent-weekly-update-full.sh
+
+# 查看/删除：
+#   crontab -l
+#   crontab -r   # 谨慎：删除全部任务
