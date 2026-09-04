@@ -5,7 +5,7 @@
 # 安装内容（缺失才装，可重复执行）：
 #   1. reasonix / codex / claude code（初始安装检查，缺失则 npm install -g）
 #   2. pnpm
-#   3. dsh CLI（固定 @deepseek-ai/dsh@0.1.0-rc.6，与桥插件验证组合一致）
+#   3. dsh CLI（npm 全局包 latest；与桥插件兼容性以 --probe 验证为准）
 #   4. multica 用户版（~/.local/bin/multica，免 root 自更新）
 #   5. 桥插件本地构建并装入 multica profile（@multica-ai/dsh-runtime）
 #   6. tui profile（@huiliyi37/dsh-tianshu-tui）
@@ -39,9 +39,20 @@ if [ "$(id -u)" -eq 0 ]; then
     exit 1
 fi
 
-# PATH 前置：nvm bin 或 ~/.npm-global/bin + ~/.local/bin，保证 command -v 命中用户可写副本
-NPM_GLOBAL_BIN="$(npm prefix -g 2>/dev/null)/bin"
-[ -n "$NPM_GLOBAL_BIN" ] && [ -d "$(dirname "$NPM_GLOBAL_BIN")" ] || NPM_GLOBAL_BIN="$HOME/.npm-global/bin"
+# PATH / npm prefix：保证 npm 全局目录在当前用户目录下（nvm bin 或 ~/.local/bin），
+# 这样所有 `npm install -g` 免 sudo、可被用户自动更新。
+# 若 prefix 指向系统目录（如 /usr/local），自动改为用户级 ~/.local（写入 ~/.npmrc 永久生效）。
+NPM_PREFIX="$(npm prefix -g 2>/dev/null)"
+case "$NPM_PREFIX" in
+    "$HOME"/*)
+        log "==> npm prefix 已在用户目录: $NPM_PREFIX" ;;
+    *)
+        log "==> npm prefix 指向系统目录($NPM_PREFIX)，改为用户级 ~/.local（免 sudo）"
+        npm config set prefix "$HOME/.local" || fail "npm config set prefix ~/.local 失败"
+        NPM_PREFIX="$HOME/.local" ;;
+esac
+NPM_GLOBAL_BIN="$NPM_PREFIX/bin"
+mkdir -p "$NPM_PREFIX/bin" 2>/dev/null || true   # prefix 目录可能尚未存在
 case ":$PATH:" in
     *":$NPM_GLOBAL_BIN:"*) ;;
     *) export PATH="$NPM_GLOBAL_BIN:$PATH" ;;
@@ -107,17 +118,16 @@ else
     run_timeout npm install -g pnpm || fail "pnpm 安装失败（退出码 $?）"
 fi
 
-# ---------- 3. dsh CLI（固定 0.1.0-rc.6） ----------
-DSH_VER_REQUIRED="0.1.0-rc.6"
-if command -v dsh >/dev/null 2>&1 && [ "$(dsh --version 2>/dev/null)" = "$DSH_VER_REQUIRED" ]; then
-    log "==> dsh 已安装且版本正确: $(dsh --version)"
+# ---------- 3. dsh CLI（npm 全局包，装最新版；与桥插件兼容性以 --probe 验证为准） ----------
+if command -v dsh >/dev/null 2>&1; then
+    log "==> dsh 已安装: $(dsh --version 2>/dev/null)"
 else
-    log "==> 安装 dsh@$DSH_VER_REQUIRED（与桥插件验证组合一致）"
-    run_timeout npm install -g "@deepseek-ai/dsh@$DSH_VER_REQUIRED" || fail "dsh 安装失败（退出码 $?）"
+    log "==> 安装 dsh（最新版）"
+    run_timeout npm install -g "@deepseek-ai/dsh" || fail "dsh 安装失败（退出码 $?）"
     hash -r 2>/dev/null || true
 fi
-if ! command -v dsh >/dev/null 2>&1 || [ "$(dsh --version 2>/dev/null)" != "$DSH_VER_REQUIRED" ]; then
-    log "!! dsh 安装后校验失败（期望 $DSH_VER_REQUIRED），请检查 PATH: $(command -v dsh || echo none)"
+if ! command -v dsh >/dev/null 2>&1; then
+    log "!! dsh 安装后未找到，请检查 PATH: $(command -v dsh || echo none)"
     exit 1
 fi
 
@@ -198,7 +208,7 @@ log "==> 验证 dsh --profile multica --probe"
 if dsh --profile multica --probe >/dev/null 2>&1; then
     log "==> --probe 成功（protocol version 1）"
 else
-    fail "--probe 失败。请检查：profile 是否混入多余插件、dsh 版本是否为 $DSH_VER_REQUIRED"
+    fail "--probe 失败。请检查：multica profile 是否混入多余插件、dsh 与桥插件版本是否兼容（必要时回退 dsh 到更新前版本）"
     log "   排查见 docs/runtime-and-web.md 故障排查 1/2"
 fi
 

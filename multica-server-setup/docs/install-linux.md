@@ -1,14 +1,14 @@
 # Linux 安装教程（通用 + 阿里云 ECS 特化）
 
 > 适用：Ubuntu 22.04 / 24.04 / Debian 12 / Alibaba Cloud Linux 3（以 Ubuntu 24.04 为例）
-> 版本基准：Node `22.19+ / 24+`、pnpm ≥ 10、`@deepseek-ai/dsh@0.1.0-rc.6`、`@huiliyi37/dsh-tianshu-tui@0.1.2-rc.x`、multica 最新版
+> 版本基准：Node `22.19+ / 24+`、pnpm ≥ 10、dsh（npm 全局包 latest，兼容性以 `--probe` 验证为准）、`@huiliyi37/dsh-tianshu-tui`、multica 最新版
 > 本文档与 `scripts/setup-agent.sh` 内容一致（脚本是幂等自动化版）；需要手工分步时按本文档执行
 
 ---
 
 ## 0. 硬性规则（先读）
 
-- **一切安装都在当前用户目录**：nvm（`~/.nvm`）、npm 全局（nvm bin 或 `~/.npm-global/bin`）、multica 用户版（`~/.local/bin/multica`）。
+- **一切安装都在当前用户目录**：nvm（`~/.nvm`）、npm 全局（nvm bin 或 `~/.local/bin`）、multica 用户版（`~/.local/bin/multica`）。
 - **全程禁止 `sudo` / root 安装**。理由：root 装的包与用户配置混在一起，后续自动更新全是坑（EACCES / secure_path 找不到命令）。先确认：
   ```bash
   id -u          # 必须非 0
@@ -70,18 +70,44 @@ node -v && npm -v
 
 > 方案 B 后**必须做第 2 步**（否则 `npm install -g` 报 EACCES）。
 
-## 第 2 步：配置 npm 全局目录（非 nvm 场景必做，避免 EACCES）
+## 第 2 步：配置 npm 全局目录到 `~/.local`（非 nvm 场景必做，避免 EACCES）
 
-npm 默认全局目录 `/usr/local/lib/node_modules` 普通用户不可写。改到用户目录，之后所有 `npm -g` 免 sudo：
+npm 默认全局目录 `/usr/local/lib/node_modules` 当前用户**不可写**，`npm install -g` 会报 EACCES。把 prefix 改为用户目录 `~/.local`，**之后所有 `npm -g` 都无需 sudo**，且可执行文件自动进入 `~/.local/bin`——正好与 multica 用户版（`~/.local/bin/multica`）同目录，PATH 只需前置一次：
 
 ```bash
-npm config set prefix ~/.npm-global
-echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc   # zsh 写 ~/.zshrc
-source ~/.bashrc
-npm bin -g     # 应输出 /home/<用户>/.npm-global/bin
+# 1. 创建用户级目录（bin 由 npm 自动创建）
+mkdir -p ~/.local/bin
+
+# 2. 设置 npm 全局安装前缀（写入 ~/.npmrc，永久生效）
+npm config set prefix ~/.local
+
+# 3. 将 ~/.local/bin 加入 PATH（bash 写 ~/.bashrc，zsh 写 ~/.zshrc）
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc   # 或 source ~/.zshrc
 ```
 
-> nvm 方案（A）跳过本步。
+验证：
+
+```bash
+npm config get prefix   # 应输出 /home/<用户>/.local
+npm bin -g              # 应输出 /home/<用户>/.local/bin
+```
+
+> **nvm 方案（A）跳过本步**：nvm 的 npm prefix 天然在 `~/.nvm/versions/node/...`（用户目录、可写），不要改 prefix，绝不要 sudo。
+
+### 备选：单次安装指定 prefix（不想改全局配置时）
+
+```bash
+npm install --prefix ~/.local -g reasonix --registry=https://registry.npmmirror.com/
+```
+
+> ⚠️ 注意：`--prefix` 与 `-g` 同时使用时，部分 npm 版本会忽略 `-g`。**官方推荐只设置 prefix 一次**（上面第 2 步），备选写法仅应急。
+
+### 常见问题
+
+- 之前用 `sudo` 装过旧版：`sudo npm uninstall -g <包名>` 清理；新安装到用户目录后以用户版为准。
+- `npm config get prefix` 不是 `~/.local`：确认配置已写入 `~/.npmrc`。
+- 装完仍找不到命令：检查 `~/.local/bin` 在 PATH 中（`echo $PATH`），重新打开终端或 `source ~/.bashrc`。
 
 ## 第 3 步：npm registry 镜像（阿里云关键）
 
@@ -97,7 +123,7 @@ npm config get registry    # 确认输出 npmmirror
 单次安装不想改全局配置时：
 
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6 --registry=https://registry.npmmirror.com/
+npm install -g @deepseek-ai/dsh --registry=https://registry.npmmirror.com/
 ```
 
 ## 第 4 步：安装 pnpm 与 git
@@ -127,14 +153,16 @@ codex --version
 claude --version
 ```
 
-> 若 PATH 上有其他同名命令（apt 的 dsh / 旧残留），先 `which -a <cmd>` 排查，把 nvm bin / `~/.npm-global/bin` 放到 PATH 最前。
+> 若 PATH 上有其他同名命令（apt 的 dsh / 旧残留），先 `which -a <cmd>` 排查，把 nvm bin / `~/.local/bin` 放到 PATH 最前。
 
-## 第 6 步：安装 dsh CLI（固定 rc.6）
+## 第 6 步：安装 dsh CLI
 
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6
-dsh --version     # 必须输出 0.1.0-rc.6（与桥插件官方验证组合一致，不要装 rc.7+）
+npm install -g @deepseek-ai/dsh
+dsh --version     # 输出当前版本即可
 ```
+
+> dsh 版本**无需固定**：直接装 latest。若新版与桥插件不兼容（`dsh --profile multica --probe` 失败），回退到此前可用的版本（见 `runtime-and-web.md` 故障排查 10）。
 
 ## 第 7 步：安装 Multica CLI（用户版，免 root 自更新）
 
@@ -244,7 +272,7 @@ multica daemon logs -f
 |---|---|
 | npm / git 下载慢 | `npm config set registry https://registry.npmmirror.com`；clone 用 gitclone/ghproxy 前缀 |
 | nvm 下载 Node 慢 | `export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node/` |
-| `npm install -g` EACCES | 执行第 2 步改 prefix 到 `~/.npm-global`，**不要 sudo** |
+| `npm install -g` EACCES | 执行第 2 步：`npm config set prefix ~/.local`（写入 `~/.npmrc` 永久生效），**不要 sudo** |
 | `corepack enable` 找不到 | apt/二进制版 Node 裁剪了 corepack，`npm install -g pnpm` |
 | 安全组 | 全链路出站（WSS 443/HTTPS 443），**无需开入站端口**；运行时不在线先查 daemon |
 | nvm 下 sudo | 禁止：sudo 走 secure_path 找不到 nvm 命令 |

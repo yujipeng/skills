@@ -81,7 +81,7 @@ node web-access/scripts/check-deps.mjs
 - `guizang-ppt-skill` 来源：[op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) `main`（AGPL-3.0）
 - `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.11.1（MIT）
 - `humanizer-zh` 来源：[op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) `main`（MIT）
-- `multica-server-setup` 内部 skill，v1.0.0（源自本仓库 `tests/` 实测脚本与教程；基于 `@deepseek-ai/dsh@0.1.0-rc.6` + `@multica-ai/dsh-runtime` + `@huiliyi37/dsh-tianshu-tui` 验证组合）
+- `multica-server-setup` 内部 skill，v1.0.0（源自本仓库 `tests/` 实测脚本与教程；基于 `@deepseek-ai/dsh` + `@multica-ai/dsh-runtime` + `@huiliyi37/dsh-tianshu-tui` 组合，dsh 版本以 `--probe` 验证）
 - `prototype-html` 来源：[vagerent/prototype-html](https://github.com/vagerent/prototype-html) v1.0.0（Apache-2.0）
 - `self-improving` 来源：[clawic.com/skills/self-improving](https://clawic.com/skills/self-improving) v1.2.16
 - `tc-exam-solver` 内部 skill，v1.0.0（针对 ai-exam.tcredit.com）

@@ -16,7 +16,7 @@ required_environment_variables:
     required_for: Running the dsh agent runtime (model inference)
   - name: MULTICA_DSH_PATH
     prompt: Absolute path to dsh binary
-    help: Optional but recommended — the daemon's PATH may differ from the terminal's. Example /home/user/.npm-global/bin/dsh
+    help: Optional but recommended — the daemon's PATH may differ from the terminal's. Example /home/user/.local/bin/dsh
     required_for: Ensuring the daemon finds the right dsh
   - name: MULTICA_DSH_MODEL
     prompt: Default model id (provider/model)
@@ -37,8 +37,8 @@ required_environment_variables:
 
 ## 硬性规则（必须遵守）
 
-- **所有安装一律在当前用户目录**：nvm（`~/.nvm`）或 `~/.npm-global`，multica 用户版 `~/.local/bin/multica`。**全程禁止 sudo / root 安装**；脚本开头校验 `EUID != 0`。
-- **dsh 固定 `0.1.0-rc.6`**（与桥插件官方验证组合一致）；更新脚本更新后必须重新验证 `dsh --profile multica --probe`，失败提示回退 rc.6。
+- **所有安装一律在当前用户目录**：nvm（`~/.nvm`，npm prefix 天然用户可写）或 `npm config set prefix ~/.local`（非 nvm，写入 `~/.npmrc`；bin 即 `~/.local/bin`，与 multica 用户版同目录），multica 用户版 `~/.local/bin/multica`。**全程禁止 sudo / root 安装**；脚本开头校验 `EUID != 0`，且自动把系统目录 prefix 修复为用户级 `~/.local`。
+- **dsh 版本无需固定**：装 `@deepseek-ai/dsh` latest（与桥插件兼容性以 `--probe` 验证为准）；更新脚本更新后必须重新验证 `dsh --profile multica --probe`，失败自动回退更新前版本。
 - **profile 隔离**：`multica` profile 只允许 `@deepseek-ai/dsh-base` + `@multica-ai/dsh-runtime` 两个 bundle；TUI 插件一律装 `tui` profile，禁止混入 multica profile（否则 `--probe` 被参数解析器拦截）。
 - **API key 只经环境变量 / 凭据文件传入**，禁止出现在日志、crontab 明文、systemd unit 之外的可共享文件或提交中。
 - 国内网络（阿里云 ECS 等）：脚本无代理时自动把 npm/pnpm 切到 npmmirror 镜像（`npm_config_registry`，等价 `--registry=https://registry.npmmirror.com/`）；nvm 下载镜像见 `docs/install-linux.md`。
@@ -63,7 +63,7 @@ bash skills/multica-server-setup/scripts/setup-agent.sh
 
 - Node（nvm 缺失时安装）→ npm prefix 用户可写校验
 - **reasonix / codex / claude code 缺失时安装**（`npm install -g reasonix`、`npm install -g @openai/codex`、`npm install -g @anthropic-ai/claude-code`）
-- pnpm → dsh `0.1.0-rc.6` → multica 用户版 → 桥插件本地构建装入 multica profile → `tui` profile 装 `@huiliyi37/dsh-tianshu-tui`
+- pnpm → dsh（latest）→ multica 用户版 → 桥插件本地构建装入 multica profile → `tui` profile 装 `@huiliyi37/dsh-tianshu-tui`
 - `DEEPSEEK_API_KEY` 提示配置 → `--probe` 验证 → daemon start
 
 需要分步/手工执行时，按 `docs/install-linux.md`（含阿里云特化）与 `docs/runtime-and-web.md` 操作。
@@ -71,7 +71,7 @@ bash skills/multica-server-setup/scripts/setup-agent.sh
 ### 3. 验证
 
 ```bash
-dsh --version                              # 必须 0.1.0-rc.6
+dsh --version                              # 输出当前版本即可（无需固定）
 dsh --profile multica --probe              # 必须成功（protocol version 1）
 dsh --profile multica --list-models        # 输出 provider/model 完整 id
 multica daemon status                      # 运行时在线；离线则 daemon restart
@@ -110,7 +110,7 @@ bash skills/multica-server-setup/scripts/agent-weekly-update-full.sh
 | `docs/install-linux.md` | 通用 Linux + 阿里云 ECS 安装教程（镜像、EACCES、安全组） |
 | `docs/runtime-and-web.md` | 三 profile、验证、daemon、Web 智能体、故障排查 |
 | `templates/weekly-update.cron` | crontab 每周日示例 |
-| `templates/multica-daemon.service` | systemd 常驻单元（nvm / npm-global 两种 PATH 写法） |
+| `templates/multica-daemon.service` | systemd 常驻单元（nvm / ~/.local 两种 PATH 写法） |
 | `templates/dsh-web-launchd.plist` | macOS 开发机 dsh web 常驻（可选） |
 
 ## 安全

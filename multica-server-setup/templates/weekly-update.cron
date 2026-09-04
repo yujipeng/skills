@@ -10,7 +10,7 @@
 #
 # 注意：
 #   - 路径按实际部署位置调整（脚本放在用户可读目录即可）
-#   - crontab 环境 PATH 极简，脚本内部已自行前置 nvm bin / ~/.npm-global/bin
+#   - crontab 环境 PATH 极简，脚本内部已自行前置 nvm bin / ~/.local/bin
 #   - 容器内 /var/spool/cron 无写权限时，需在宿主机或具备权限的环境安装
 
 # 服务器精简版（每周日 03:00）

@@ -6,7 +6,7 @@
 
 ## 0. 初始工具安装检查与禁止 root 清单
 
-本 skill 的**所有安装都在当前用户目录**（nvm / `~/.npm-global` / `~/.local/bin`），**全程禁止 sudo / root**。每次在服务器上操作前先过一遍清单：
+本 skill 的**所有安装都在当前用户目录**（nvm bin / `~/.local/bin`），**全程禁止 sudo / root**。每次在服务器上操作前先过一遍清单：
 
 - [ ] `id -u` 输出非 0（root 直接退出，改用普通用户执行）
 - [ ] reasonix / codex / claude code 缺失时 `npm install -g`（用户目录 npm 全局）：
@@ -15,7 +15,7 @@
   command -v codex    || npm install -g @openai/codex
   command -v claude   || npm install -g @anthropic-ai/claude-code
   ```
-- [ ] PATH 前置：nvm bin 或 `~/.npm-global/bin` + `~/.local/bin`（`command -v` 必须命中用户可写副本）
+- [ ] PATH 前置：nvm bin 或 `~/.local/bin`（`command -v` 必须命中用户可写副本）
 - [ ] 不用 sudo 执行任何 npm / pnpm / dsh / multica 命令（sudo 走 secure_path，找不到用户目录命令）
 
 完整安装步骤见 `install-linux.md`（第 0 节硬性规则、第 5 步 reasonix/claude code）。
@@ -55,7 +55,7 @@ multica profile 的期望内容（`~/.dsh/profiles/multica/package.json`）：
 ## 2. 运行时验证标准
 
 ```bash
-dsh --version                      # 必须 0.1.0-rc.6
+dsh --version                      # 输出当前版本即可（无需固定，兼容性以 --probe 为准）
 dsh --profile multica --probe      # 退出码 0、输出 protocol version 1（诊断走 stderr）
 dsh --profile multica --list-models  # provider/model 完整 id，如 deepseek-official/deepseek-chat
 multica daemon status              # 运行时在线；心跳约 15 秒
@@ -106,7 +106,7 @@ multica config show
 | macOS 开发机：dsh web 常驻 | launchd | `templates/dsh-web-launchd.plist` |
 | 开发机：reasonix/codex/claude/dsh/multica 全更新 | crontab | `scripts/agent-weekly-update-full.sh` |
 
-> 更新脚本在 crontab 环境运行，PATH 必须显式给全（nvm bin 或 `~/.npm-global/bin` 在最前），脚本内已处理。
+> 更新脚本在 crontab 环境运行，PATH 必须显式给全（nvm bin 或 `~/.local/bin` 在最前），脚本内已处理。
 
 ## 6. 故障排查
 
@@ -119,11 +119,11 @@ dsh plugin --profile multica remove dsh-find-plugin
 dsh --profile multica --probe
 ```
 
-### 2. `dsh --version` 不是 `0.1.0-rc.6`
+### 2. `dsh --version` 异常或版本与桥插件不兼容
 ```bash
 which -a dsh      # 排查同名命令（apt 的 dsh / 旧残留）
 npm ls -g --depth=0 | grep -i dsh
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6
+npm install -g @deepseek-ai/dsh    # 重装/升级到最新
 export PATH="$(npm prefix -g)/bin:$PATH"
 hash -r
 ```
@@ -151,14 +151,15 @@ export MULTICA_DSH_PATH=$(which dsh)
 确认 `DEEPSEEK_API_KEY` 已配置且有效、`--probe` 正常；模型 id 用完整形式。
 
 ### 8. `npm install -g` 报 EACCES
-npm 全局目录无写权限。非 nvm 场景执行 `npm config set prefix ~/.npm-global`（见 `install-linux.md` 第 2 步）；nvm 场景不要 sudo。
+npm 全局目录无写权限。非 nvm 场景执行 `npm config set prefix ~/.local`（见 `install-linux.md` 第 2 步，写入 `~/.npmrc` 永久生效）；nvm 场景不要 sudo。
 
 ### 9. 安全组相关疑问
 Multica + dsh 全链路出站（WSS 443 / HTTPS 443），无需开入站端口；运行时不在线先查 daemon 是否在跑，不是安全组问题。
 
-### 10. 更新后 `--probe` 失败（dsh 被升到 rc.7+）
+### 10. 更新后 `--probe` 失败（新版 dsh 与桥插件不兼容）
+dsh 版本**无需固定**；升级到新版后若 `--probe` 失败，回退到此前可用的版本（`agent-weekly-update.sh` 会自动回退更新前版本）：
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.0-rc.6   # 回退到验证组合
+npm install -g @deepseek-ai/dsh@<此前可用版本>   # 例：0.1.0-rc.6
 dsh --profile multica --probe
 multica daemon restart
 ```
