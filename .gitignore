@@ -6,6 +6,7 @@
 # Python 缓存
 __pycache__/
 
-# 本地 skill：short-link 与 tests 不入库
+# 本地 skill：short-link、tests 与 daily-ops-report 不入库
 short-link/
 tests/
+daily-ops-report/
