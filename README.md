@@ -119,6 +119,17 @@ Browser automation CLI for AI agents。提供 Stealth 反检测浏览器、Chrom
 
 ---
 
+### `life-decision-guide/`
+
+按《高性价比人生指南》回答具体人生决策的 Skill：先到书里把相关条目查出来，再照书自己的算账方式（成本 = 钱 + 时间 + 毅力，收益量级，证据等级 A/B/C）排序作答，每条注明出自第几节第几条；查不到就直说，不凭记忆补数字、补法条。急症、自杀念头、法律程序等情形先走对应的应急分支。
+
+- **来源**：[eternity4719/HowToLiveBetter](https://github.com/eternity4719/HowToLiveBetter) 的 `skills/life-decision-guide/`
+- **版本**：v1.0.0
+- **License**：CC-BY-4.0（正文著作权归上游；仓库代码部分为 MIT）
+- **依赖**：无（纯提示工程）；正文约 1.3 MB 不随本仓库分发，运行时按需 `git clone --depth 1` 整取或 `curl` 单文件取
+
+---
+
 ### `prototype-html/`
 
 根据产品需求生成可交互的单文件 HTML 原型。适合快速验证 UI 布局、交互逻辑和功能演示，无需搭建前端环境。
