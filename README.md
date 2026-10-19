@@ -139,6 +139,57 @@ Browser automation CLI for AI agents。提供 Stealth 反检测浏览器、Chrom
 
 ---
 
+### `huashu-design/`
+
+用 HTML 做设计的全流程 skill：高保真交互原型、HTML deck（可导出可编辑 PPTX）、信息图 / 数据可视化、时间轴动画（MP4 / GIF），以及设计方向顾问和 5 维评审。核心机制是先出三个真实方向让用户选，再执行。
+
+- **来源**：[alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design)
+- **版本**：v3.0.0
+- **License**：MIT（2026-05-14 起；早期版本为 Personal Use License）
+- **依赖**：Node.js + npm 包 `playwright` / `sharp` / `pptxgenjs` / `pdf-lib`；FFmpeg；Python 3 + `playwright` / `pillow`（截图、设计体检）
+- **引用关系**：根目录 `SKILL.md` 即 skill 入口，直接引用 `references/`、`assets/`、`scripts/`、`demos/` 四个子目录；`scripts/capabilities.py` 会把 `huashu-motion` 识别为兄弟 skill。与 `frontend-design`、`guizang-ppt-skill`、`prototype-html` 功能有重叠，但覆盖面更广、运行时更重。
+
+核心能力：84 种 HTML 原生风格库（网页 / PPT / 信息图 / App / 中文与东亚）、品牌资产五步协议、三方向门、可编辑 PPTX 导出、`design_lint.py` 设计体检与外观账本。
+
+**运行**：
+
+```bash
+# 安装到 agent（任选其一）
+npx skills add alchaincyf/huashu-design
+
+# 本仓库内直接探测本机能力
+python3 huashu-design/scripts/capabilities.py
+```
+
+> 设计 → 渲染 → 导出的核心链路本地运行；`scripts/cloud/` 下的豆包 TTS / 火山方舟看片评审是可选云能力，需自备 key 并用 `--yes` 显式确认。
+
+---
+
+### `huashu-motion/`
+
+用代码拍发布片 / 动效片的 skill：agent 写单文件 HTML + GSAP 时间线，本机 Chrome 逐帧渲染，FFmpeg 合成配乐、音效和视频；浏览器里的 studio 支持指着画面提修改。
+
+- **来源**：[alchaincyf/huashu-motion](https://github.com/alchaincyf/huashu-motion)
+- **版本**：v0.1.0（收录 commit `3e92780`，即 v0.1.0 之后 1 个提交）
+- **License**：MIT；GSAP 为 GSAP Standard License，随附字体为 SIL OFL 1.1；「豆子花叔」角色不在 MIT 授权范围内，仅限本项目示范使用
+- **依赖**：Node.js 22+、Chrome / Chromium / Edge、FFmpeg；可选真乐器采样（约 55 MB）、Kokoro 口播模型（约 325 MB）、`whisper-cpp`
+- **引用关系**：`skills/huashu-motion/bin/om` 是 skill 入口，优先调用同级 `cli/om.js`，找不到时回退 `npx huashu-motion`；`runtime/`、`studio/`、`templates/`、`fonts/` 为运行时资产。`SKILL.md` 通过相对路径引用 `references/` 下的方法文档、运动语言库和示范谱。
+- **注意**：本仓库收录的是完整上游项目，不是单文件 skill；`skills/huashu-motion/` 才是 skill 本体，其余目录是它能跑起来的依赖。
+
+核心能力：导演规则与节奏单、20 种运动语言、10 个起步模板、23 种音效、ABC 记谱作曲、口播逐字对齐、`om check` / `om qa` 渲染前后检查、MP4 / MOV / WebM / GIF 导出。
+
+**运行**：
+
+```bash
+# 环境检查（直接使用仓库内的 CLI）
+huashu-motion/skills/huashu-motion/bin/om doctor
+
+# 或使用 npm 发布版
+npx huashu-motion doctor
+```
+
+---
+
 ### `self-improving/`
 
 让 Agent 具备自我反思与持续学习能力的 Skill。当命令/工具失败、用户纠正、知识过时或发现更优方案时自动触发，将修正持久化写入本地记忆文件，下次对话直接应用。

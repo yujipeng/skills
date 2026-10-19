@@ -15,6 +15,8 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - `fireworks-tech-graph/` — 技术图生成 skill：自然语言生成 SVG + PNG，支持架构图、流程图、UML、ER 图和多种视觉风格
 - `frontend-design/` — Anthropic 前端设计 skill：指导构建有明确视觉方向、避免模板感的生产级界面
 - `guizang-ppt-skill/` — 归藏 PPT skill：生成电子杂志或瑞士风单文件 HTML 演示、配图和多平台封面
+- `huashu-design/` — 花叔设计 skill：根目录 `SKILL.md` + `references/` + `assets/` + `scripts/` + `demos/`，覆盖高保真原型、HTML deck / 可编辑 PPTX、信息图、动画与 5 维评审（依赖 Node.js / FFmpeg / Playwright / Python）
+- `huashu-motion/` — 花叔动效 skill：完整上游项目，skill 入口为 `skills/huashu-motion/`，`bin/om` 优先调用同级 `cli/`（缺失时回退 `npx huashu-motion`），支持发布片 / 动效片、作曲、音效、口播和 studio 点选修改（依赖 Node.js 22+ / Chrome / FFmpeg）
 - `humanizer/` — 去除 AI 写作痕迹 skill：`SKILL.md` + `README.md` + Claude 插件元数据（纯提示工程，无运行时依赖）
 - `humanizer-zh/` — 中文去 AI 写作痕迹 skill：针对中文表达检测并重写模板化、宣传化和机械排比等模式
 - `life-decision-guide/` — 人生决策查询 skill：先到《高性价比人生指南》查条目，再按成本（钱/时间/毅力）、收益量级和证据等级 A/B/C 排序作答并给出处，查不到不编（纯提示工程，正文运行时现取）
@@ -53,6 +55,12 @@ python3 api-relay-perf-bench/perf-bench.py \
 # web-access 环境检查与 CDP Proxy 启动（通常由 Agent 自动执行）
 node web-access/scripts/check-deps.mjs
 # 临时指定浏览器：node web-access/scripts/check-deps.mjs --browser edge
+
+# huashu-design 本机能力探测（生图 / 兄弟 skill / Node / FFmpeg / Playwright）
+python3 huashu-design/scripts/capabilities.py
+
+# huashu-motion 环境检查（Node / Chrome / FFmpeg 与可选模型）
+huashu-motion/skills/huashu-motion/bin/om doctor
 ```
 
 ## SKILL.md 规范
@@ -63,6 +71,7 @@ node web-access/scripts/check-deps.mjs
 - 必须声明 `required_environment_variables`，禁止把 key 硬编码或出现在报告/日志中
 - 相关 skill 通过 `metadata.hermes.related_skills` 关联
 - 不使用环境变量配置的 skill（如 web-access，使用 config.env 文件）声明 `required_environment_variables: []`
+- 上游原样收录的第三方 skill（`huashu-design`、`huashu-motion`）保留上游 frontmatter 以便同步，不强制套用上述字段；新增或本地维护的 skill 仍需满足。
 
 ## 安全要求
 
@@ -80,6 +89,8 @@ node web-access/scripts/check-deps.mjs
 - `fireworks-tech-graph` 来源：[yizhiyanhua-ai/fireworks-tech-graph](https://github.com/yizhiyanhua-ai/fireworks-tech-graph) v1.2.0（MIT）
 - `frontend-design` 来源：[anthropics/skills](https://github.com/anthropics/skills/tree/main/skills/frontend-design) `main`（许可证见 `frontend-design/LICENSE.txt`）
 - `guizang-ppt-skill` 来源：[op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) `main`（AGPL-3.0）
+- `huashu-design` 来源：[alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) v3.0.0（MIT，2026-05-14 起；早期版本为 Personal Use License）
+- `huashu-motion` 来源：[alchaincyf/huashu-motion](https://github.com/alchaincyf/huashu-motion) v0.1.0 后 1 个提交（commit `3e92780`；MIT，GSAP Standard License、字体 OFL 1.1、「豆子花叔」角色不在 MIT 范围内）
 - `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.11.1（MIT）
 - `humanizer-zh` 来源：[op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) `main`（MIT）
 - `life-decision-guide` 来源：[eternity4719/HowToLiveBetter](https://github.com/eternity4719/HowToLiveBetter) 的 `skills/life-decision-guide/` v1.0.0（CC-BY-4.0；正文约 1.3 MB 不随本仓库分发，运行时现取）

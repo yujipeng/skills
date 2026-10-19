@@ -1,6 +1,6 @@
 # Skills Index
 
-本仓库收录 16 个 Agent Skills。每个目录保留自己的上游许可证和运行要求；使用前请阅读对应的 `SKILL.md`。
+本仓库收录 18 个 Agent Skills。每个目录保留自己的上游许可证和运行要求；使用前请阅读对应的 `SKILL.md`。
 
 | Skill | 作用 | 来源 / 版本 |
 |---|---|---|
@@ -11,6 +11,8 @@
 | [`fireworks-tech-graph`](fireworks-tech-graph/) | 生成并校验 SVG + PNG 架构图、流程图、UML、ER 图和 AI 系统图 | `yizhiyanhua-ai/fireworks-tech-graph` v1.2.0 |
 | [`frontend-design`](frontend-design/) | 为新建或改造的前端界面制定有辨识度的视觉方向和实现原则 | `anthropics/skills` main |
 | [`guizang-ppt-skill`](guizang-ppt-skill/) | 生成电子杂志或瑞士风 HTML 演示、PPT 配图和社交平台封面 | `op7418/guizang-ppt-skill` main |
+| [`huashu-design`](huashu-design/) | 用 HTML 生成高保真原型、HTML deck / 可编辑 PPTX、信息图、动画和 5 维评审 | `alchaincyf/huashu-design` v3.0.0，MIT |
+| [`huashu-motion`](huashu-motion/) | 用代码生成发布片 / 动效片，支持作曲、音效、口播和浏览器点选修改 | `alchaincyf/huashu-motion` v0.1.0，MIT |
 | [`humanizer`](humanizer/) | 识别并减少文本中的 AI 写作痕迹，同时保留原意、语气和有效的人类写作特征 | `blader/humanizer` v2.11.1 |
 | [`humanizer-zh`](humanizer-zh/) | 针对中文表达识别并重写 AI 写作痕迹 | `op7418/Humanizer-zh` main |
 | [`life-decision-guide`](life-decision-guide/) | 查《高性价比人生指南》条目并按成本、收益量级和证据等级排序回答人生决策问题 | `eternity4719/HowToLiveBetter` v1.0.0，CC-BY-4.0 |
@@ -27,4 +29,6 @@
 - `fireworks-tech-graph` 推荐使用 `cairosvg`，也可回退到 `rsvg-convert` 或 Puppeteer 导出 PNG。
 - `guizang-ppt-skill` 输出可直接打开的单文件 HTML；瑞士风演示可使用自带 Node.js 校验脚本。
 - `web-access` 需要 Node.js 22+；浏览器交互模式还需要 Chrome 或 Edge 开启远程调试。
+- `huashu-design` 需要 Node.js、FFmpeg、Playwright 和 Python 的 `playwright` / `pillow`；根目录 `SKILL.md` 直接引用 `references/`、`assets/`、`scripts/`、`demos/`。
+- `huashu-motion` 需要 Node.js 22+、Chrome / Chromium / Edge 和 FFmpeg；skill 入口是 `skills/huashu-motion/bin/om`，会优先调用仓库内的 `cli/`，缺失时回退 `npx huashu-motion`。
 - API relay 相关 skill 的密钥必须通过环境变量传入，禁止提交真实密钥。
