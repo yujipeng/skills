@@ -6,6 +6,31 @@
 
 ## 已收录
 
+### `anatomy/`
+
+把技术概念解释成一张可交互的等距（isometric）机械图：不画方框和箭头，而是造一台真实的仪器、机械或家具，让它的运作本身就是概念。输出独立 HTML、单文件 SVG 或 React / Next.js 组件，可选 WebGL 着色器（火焰、尾焰、水波、焦散、灯光）和 beta 版 3D，也可打印成 A4 PDF。
+
+- **来源**：[wheresryan22/anatomy](https://github.com/wheresryan22/anatomy)
+- **版本**：v1.1.0 后 53 个提交（收录 commit `1482e84`）
+- **License**：MIT
+- **依赖**：Node.js 20.10+、Chrome / Chromium（截图与几何检查）；零 npm 依赖；React 18+ 仅用于 React 输出
+- **引用关系**：根目录 `SKILL.md` 即 skill 入口，引用 `references/`（craft / motion / verify / webgl / 3d / kit）、`kit/`（等距投影、车削、管线、几何审计）、`scripts/`（capture / drive / lines / turn-check / publish）和 `examples/` 下的完整示例。
+- **注意**：定位不是图表库，不画坐标轴或数据图；只适合有机械结构可映射的概念，纯抽象主题效果会弱；完整图制作耗时较长。
+
+核心能力：把概念映射成物理对象、四色调阴影与正确遮挡顺序、指针/键盘交互与缓动、WebGL 着色器、几何与线条审计、桌面/手机截图验证、A4 海报 / 图纸 / handout 导出。
+
+**运行**：
+
+```bash
+# 安装到 agent（Claude Code / Codex / Antigravity / OpenCode / MiniMax Code）
+npx skills add wheresryan22/anatomy -g
+
+# 重建示例（输出独立 HTML；加 --light 出浅色主题）
+node anatomy/examples/dial-indicator/build.mjs
+```
+
+---
+
 ### `api-relay-audit/`
 
 第三方 AI API 中转 / 代理服务的安全审计工具（红队向）。

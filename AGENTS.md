@@ -8,6 +8,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 子目录结构
 
+- `anatomy/` — 等距技术解释图 skill：根目录 `SKILL.md` + `references/` + `kit/` + `scripts/` + `examples/`，把技术概念构造成可交互的机械 / 仪器图（SVG、可选 WebGL / 3D），输出 HTML / SVG / React，可打印 A4 PDF（依赖 Node.js 20.10+、Chrome / Chromium；零 npm 依赖）
 - `api-relay-audit/` — 安全审计 skill：`SKILL.md` + `audit.py`（零依赖，Python 3 + curl）
 - `api-relay-perf-bench/` — 性能基准 skill：`SKILL.md` + `perf-bench.py`（多端点模式可自备 JSON 配置）
 - `browser-act/` — 浏览器自动化 CLI：`SKILL.md`（需 `uv tool install browser-act-cli --python 3.12` 安装运行时）
@@ -61,6 +62,9 @@ python3 huashu-design/scripts/capabilities.py
 
 # huashu-motion 环境检查（Node / Chrome / FFmpeg 与可选模型）
 huashu-motion/skills/huashu-motion/bin/om doctor
+
+# anatomy 示例重建（输出独立 HTML；加 --light 出浅色主题）
+node anatomy/examples/dial-indicator/build.mjs
 ```
 
 ## SKILL.md 规范
@@ -71,7 +75,7 @@ huashu-motion/skills/huashu-motion/bin/om doctor
 - 必须声明 `required_environment_variables`，禁止把 key 硬编码或出现在报告/日志中
 - 相关 skill 通过 `metadata.hermes.related_skills` 关联
 - 不使用环境变量配置的 skill（如 web-access，使用 config.env 文件）声明 `required_environment_variables: []`
-- 上游原样收录的第三方 skill（`huashu-design`、`huashu-motion`）保留上游 frontmatter 以便同步，不强制套用上述字段；新增或本地维护的 skill 仍需满足。
+- 上游原样收录的第三方 skill（`anatomy`、`huashu-design`、`huashu-motion`）保留上游 frontmatter 以便同步，不强制套用上述字段；新增或本地维护的 skill 仍需满足。
 
 ## 安全要求
 
@@ -82,6 +86,7 @@ huashu-motion/skills/huashu-motion/bin/om doctor
 
 ## 版本管理
 
+- `anatomy` 来源：[wheresryan22/anatomy](https://github.com/wheresryan22/anatomy) v1.1.0 后 53 个提交（commit `1482e84`；MIT）
 - `api-relay-audit` 来源：`toby-bridges/api-relay-audit` v2.4.0（AGPL-3.0-only）
 - `api-relay-perf-bench` 作者：gigi1121，v1.0.0（AGPL-3.0-only）
 - `browser-act` 来源：[BrowserAct](https://www.browseract.com) v2.0.2（安装：`uv tool install browser-act-cli --python 3.12`）

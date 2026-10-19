@@ -1,9 +1,10 @@
 # Skills Index
 
-本仓库收录 18 个 Agent Skills。每个目录保留自己的上游许可证和运行要求；使用前请阅读对应的 `SKILL.md`。
+本仓库收录 19 个 Agent Skills。每个目录保留自己的上游许可证和运行要求；使用前请阅读对应的 `SKILL.md`。
 
 | Skill | 作用 | 来源 / 版本 |
 |---|---|---|
+| [`anatomy`](anatomy/) | 把技术概念构造成可交互的等距机械图，输出 SVG / WebGL / 3D、HTML 或 React 组件 | `wheresryan22/anatomy` v1.1.0，MIT |
 | [`api-relay-audit`](api-relay-audit/) | 审计第三方 AI API relay 的注入、泄漏、模型替换和流式异常 | `toby-bridges/api-relay-audit` v2.4.0 |
 | [`api-relay-perf-bench`](api-relay-perf-bench/) | 测量 relay 的 TTFT、延迟分位数及响应纯度 | `gigi1121/audit_ai_api` v1.0.0 |
 | [`browser-act`](browser-act/) | 通过 BrowserAct CLI 操作动态网页和浏览器会话 | BrowserAct v2.0.2 |
@@ -29,6 +30,7 @@
 - `fireworks-tech-graph` 推荐使用 `cairosvg`，也可回退到 `rsvg-convert` 或 Puppeteer 导出 PNG。
 - `guizang-ppt-skill` 输出可直接打开的单文件 HTML；瑞士风演示可使用自带 Node.js 校验脚本。
 - `web-access` 需要 Node.js 22+；浏览器交互模式还需要 Chrome 或 Edge 开启远程调试。
+- `anatomy` 需要 Node.js 20.10+ 和 Chrome / Chromium；零 npm 依赖，示例可用 `node examples/<name>/build.mjs` 重建。
 - `huashu-design` 需要 Node.js、FFmpeg、Playwright 和 Python 的 `playwright` / `pillow`；根目录 `SKILL.md` 直接引用 `references/`、`assets/`、`scripts/`、`demos/`。
 - `huashu-motion` 需要 Node.js 22+、Chrome / Chromium / Edge 和 FFmpeg；skill 入口是 `skills/huashu-motion/bin/om`，会优先调用仓库内的 `cli/`，缺失时回退 `npx huashu-motion`。
 - API relay 相关 skill 的密钥必须通过环境变量传入，禁止提交真实密钥。
