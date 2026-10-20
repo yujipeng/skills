@@ -1,0 +1,8 @@
+# vendored jev-ultrafast 的运行时文件
+# .env 含真实 API key，禁止入库
+jev-ultrafast/.env
+jev-ultrafast/.venv/
+jev-ultrafast/.pytest_cache/
+jev-ultrafast/.ruff_cache/
+jev-ultrafast/artifacts/
+jev-ultrafast/*.egg-info/

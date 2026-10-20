@@ -21,6 +21,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - `humanizer/` — 去除 AI 写作痕迹 skill：`SKILL.md` + `README.md` + Claude 插件元数据（纯提示工程，无运行时依赖）
 - `humanizer-zh/` — 中文去 AI 写作痕迹 skill：针对中文表达检测并重写模板化、宣传化和机械排比等模式
 - `life-decision-guide/` — 人生决策查询 skill：先到《高性价比人生指南》查条目，再按成本（钱/时间/毅力）、收益量级和证据等级 A/B/C 排序作答并给出处，查不到不编（纯提示工程，正文运行时现取）
+- `moli-jev/` — Moli + jev 浏览器操作 skill：`SKILL.md` + vendored `jev-ultrafast/`（上游 `browser-use/jev-ultrafast` commit `1231850`，MIT），通过 CDP 驱动 Moli 完成点击、填表和多步导航；依赖 Python 3.12+ / `uv` 与 Moli 1.1.18+，`.env` 本地保存 key 且不入库
 - `multica-server-setup/` — Multica 服务器端 agent 安装与定时更新 skill：`SKILL.md` + 3 个 Bash 脚本 + 2 份文档 + 3 个模板（一键安装、服务器精简/开发机完整每周更新、crontab/systemd/launchd）
 - `newapi-billing/` — NewAPI 计费表达式设计 skill：`SKILL.md`（纯提示工程，无运行时依赖，支持固定价格/阶梯定价/多模态/动态调价）
 - `prototype-html/` — 交互式 HTML 产品原型生成 skill：`SKILL.md` + `assets/example.html`
@@ -99,6 +100,7 @@ node anatomy/examples/dial-indicator/build.mjs
 - `humanizer` 来源：[blader/humanizer](https://github.com/blader/humanizer) v2.11.1（MIT）
 - `humanizer-zh` 来源：[op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) `main`（MIT）
 - `life-decision-guide` 来源：[eternity4719/HowToLiveBetter](https://github.com/eternity4719/HowToLiveBetter) 的 `skills/life-decision-guide/` v1.0.0（CC-BY-4.0；正文约 1.3 MB 不随本仓库分发，运行时现取）
+- `moli-jev` 内部 skill，v1.1.0（vendored [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast) commit `1231850`，MIT；运行时依赖 `uv` 与 Moli 1.1.18+）
 - `multica-server-setup` 内部 skill，v1.0.0（源自本仓库 `tests/` 实测脚本与教程；基于 `@deepseek-ai/dsh` + `@multica-ai/dsh-runtime` + `@huiliyi37/dsh-tianshu-tui` 组合，dsh 版本以 `--probe` 验证）
 - `prototype-html` 来源：[vagerent/prototype-html](https://github.com/vagerent/prototype-html) v1.0.0（Apache-2.0）
 - `self-improving` 来源：[clawic.com/skills/self-improving](https://clawic.com/skills/self-improving) v1.2.16
